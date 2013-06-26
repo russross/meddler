@@ -12,6 +12,8 @@ type structField struct {
 	column     string
 	zeroIsNull bool
 	primaryKey bool
+	localTime bool
+	utc bool
 	index int
 }
 
@@ -58,6 +60,8 @@ func getFields(dstType reflect.Type) (map[string]*structField, error) {
 		// check for flags: zeroisnull and primarykey
 		zeroIsNull := false
 		primaryKey := false
+		localTime := false
+		utc := false
 		for j := 1; j < len(tag); j++ {
 			switch tag[j] {
 			case "zeroisnull":
@@ -74,6 +78,22 @@ func getFields(dstType reflect.Type) (map[string]*structField, error) {
 				}
 				primaryKey = true
 				foundPrimary = true
+			case "localtime", "utc":
+				if !f.Type.ConvertibleTo(typeOfTime) && (f.Type.Kind() != reflect.Ptr || !f.Type.Elem().ConvertibleTo(typeOfTime)) {
+					return nil, fmt.Errorf("sqlmarshal found field %s which is marked as localtime/utc but is %v, not a time.Time field", f.Name, f.Type)
+				}
+
+				if tag[j] == "localtime" {
+					if utc {
+						return nil, fmt.Errorf("sqlmarshal found field %s which is marked as localtime and utc", f.Name)
+					}
+					localTime = true
+				} else {
+					if localTime {
+						return nil, fmt.Errorf("sqlmarshal found field %s which is marked as localtime and utc", f.Name)
+					}
+					utc = true
+				}
 			default:
 				return nil, fmt.Errorf("sqlmarshal found unknown tag %s in field %s", tag[j], f.Name)
 			}
@@ -86,6 +106,8 @@ func getFields(dstType reflect.Type) (map[string]*structField, error) {
 			column:     name,
 			zeroIsNull: zeroIsNull,
 			primaryKey: primaryKey,
+			localTime: localTime,
+			utc: utc,
 			index: i,
 		}
 	}
@@ -146,10 +168,21 @@ func scanRow(dst interface{}, rows *sql.Rows, fields map[string]*structField, co
 				}
 			}
 
-			// convert time elements to local time zone
-			if value.Elem().Type().ConvertibleTo(typeOfTime) {
-				if t, okay := value.Elem().Interface().(time.Time); okay {
-					value.Elem().Set(reflect.ValueOf(t.Local()))
+			// convert time elements to time zone
+			if field.localTime || field.utc {
+				v := value.Elem()
+				if v.Kind() == reflect.Ptr {
+					if v.IsNil() {
+						continue
+					}
+					v = v.Elem()
+				}
+				if t, okay := v.Interface().(time.Time); okay {
+					if field.localTime {
+						v.Set(reflect.ValueOf(t.Local()))
+					} else {
+						v.Set(reflect.ValueOf(t.UTC()))
+					}
 				}
 			}
 		}
