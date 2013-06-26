@@ -1,9 +1,9 @@
 package sqlmarshal
 
 import (
+	"reflect"
 	"database/sql"
 	_ "github.com/mattn/go-sqlite3"
-	"reflect"
 	"sync"
 	"testing"
 	"time"
@@ -72,11 +72,13 @@ func structFieldEqual(t *testing.T, elt *structField, ref *structField) {
 	if elt.primaryKey != ref.primaryKey {
 		t.Errorf("Column %s primaryKey found as %v", ref.column, elt.primaryKey)
 	}
+	if elt.index != ref.index {
+		t.Errorf("Column %s index found as %v", ref.column, elt.index)
+	}
 }
 
 func TestGetFields(t *testing.T) {
-	person := new(Person)
-	fields, err := getFields(person)
+	fields, err := getFields(reflect.TypeOf((*Person)(nil)))
 	if err != nil {
 		t.Errorf("Error in getFields: %v", err)
 		return
@@ -86,13 +88,13 @@ func TestGetFields(t *testing.T) {
 	if len(fields) != 7 {
 		t.Errorf("Found %d fields, expected 7", len(fields))
 	}
-	structFieldEqual(t, fields["id"], &structField{"id", false, true, reflect.Value{}})
-	structFieldEqual(t, fields["name"], &structField{"name", false, false, reflect.Value{}})
-	structFieldEqual(t, fields["Email"], &structField{"Email", false, false, reflect.Value{}})
-	structFieldEqual(t, fields["Age"], &structField{"Age", true, false, reflect.Value{}})
-	structFieldEqual(t, fields["opened"], &structField{"opened", false, false, reflect.Value{}})
-	structFieldEqual(t, fields["closed"], &structField{"closed", true, false, reflect.Value{}})
-	structFieldEqual(t, fields["height"], &structField{"height", false, false, reflect.Value{}})
+	structFieldEqual(t, fields["id"], &structField{"id", false, true, 0})
+	structFieldEqual(t, fields["name"], &structField{"name", false, false, 1})
+	structFieldEqual(t, fields["Email"], &structField{"Email", false, false, 3})
+	structFieldEqual(t, fields["Age"], &structField{"Age", true, false, 5})
+	structFieldEqual(t, fields["opened"], &structField{"opened", false, false, 6})
+	structFieldEqual(t, fields["closed"], &structField{"closed", true, false, 7})
+	structFieldEqual(t, fields["height"], &structField{"height", false, false, 8})
 }
 
 func personEqual(t *testing.T, elt *Person, ref *Person) {
@@ -161,4 +163,29 @@ func TestScanOne(t *testing.T) {
 	height := 65
 	personEqual(t, alice, &Person{1, "Alice", 0, "alice@alice.com", 0, 32, when, when, &height})
 	personEqual(t, bob, &Person{2, "Bob", 14, "bob@bob.com", 16, 0, when, time.Time{}, nil})
+}
+
+func TestScanAll(t *testing.T) {
+	once.Do(setup)
+
+	rows, err := db.Query("select * from person order by id")
+	if err != nil {
+		t.Errorf("DB error on query: %v", err)
+		return
+	}
+
+	var lst []*Person
+	if err = ScanAll(&lst, rows); err != nil {
+		t.Errorf("ScanAll error: %v", err)
+		return
+	}
+
+	if len(lst) != 2 {
+		t.Errorf("ScanAll found %d rows, expected 2", len(lst))
+		return
+	}
+
+	height := 65
+	personEqual(t, lst[0], &Person{1, "Alice", 0, "alice@alice.com", 0, 32, when, when, &height})
+	personEqual(t, lst[1], &Person{2, "Bob", 0, "bob@bob.com", 0, 0, when, time.Time{}, nil})
 }

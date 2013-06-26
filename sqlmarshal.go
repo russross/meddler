@@ -12,28 +12,22 @@ type structField struct {
 	column     string
 	zeroIsNull bool
 	primaryKey bool
-	value      reflect.Value
+	index int
 }
 
 const tagName = "sqlmarshal"
 
 var typeOfTime = reflect.TypeOf(time.Time{})
 
-func getFields(dst interface{}) (map[string]*structField, error) {
+func getFields(dstType reflect.Type) (map[string]*structField, error) {
 	// make sure dst is a non-nil pointer to a struct
-	dstType := reflect.TypeOf(dst)
 	if dstType.Kind() != reflect.Ptr {
-		return nil, fmt.Errorf("sqlmarshal called with non-pointer destination %T", dst)
-	}
-	dstVal := reflect.ValueOf(dst)
-	if dstVal.IsNil() {
-		return nil, fmt.Errorf("sqlmarshal called with nil pointer destination %T", dst)
+		return nil, fmt.Errorf("sqlmarshal called with non-pointer destination %v", dstType)
 	}
 	structType := dstType.Elem()
 	if structType.Kind() != reflect.Struct {
-		return nil, fmt.Errorf("sqlmarshal called with pointer to non-struct %T", dst)
+		return nil, fmt.Errorf("sqlmarshal called with pointer to non-struct %v", dstType)
 	}
-	structVal := dstVal.Elem()
 
 	// gather the list of fields in the struct
 	fields := make(map[string]*structField)
@@ -88,48 +82,15 @@ func getFields(dst interface{}) (map[string]*structField, error) {
 		if _, present := fields[name]; present {
 			return nil, fmt.Errorf("sqlmarshal found multiple fields for column %s", name)
 		}
-		value := structVal.Field(i)
-		if !value.CanSet() {
-			return nil, fmt.Errorf("sqlmarshal found field %s that cannot be set", f.Name)
-		}
 		fields[name] = &structField{
 			column:     name,
 			zeroIsNull: zeroIsNull,
 			primaryKey: primaryKey,
-			value:      structVal.Field(i).Addr(),
+			index: i,
 		}
 	}
 
 	return fields, nil
-}
-
-func ScanOne(dst interface{}, rows *sql.Rows) error {
-	if err := ScanRow(dst, rows); err != nil {
-		// make sure we always close rows
-		rows.Close()
-		return err
-	}
-	if err := rows.Close(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func ScanRow(dst interface{}, rows *sql.Rows) error {
-	// get the list of struct fields
-	fields, err := getFields(dst)
-	if err != nil {
-		return err
-	}
-
-	// get the sql columns
-	columns, err := rows.Columns()
-	if err != nil {
-		return err
-	}
-
-	return scanRow(dst, rows, fields, columns)
 }
 
 func scanRow(dst interface{}, rows *sql.Rows, fields map[string]*structField, columns []string) error {
@@ -141,17 +102,20 @@ func scanRow(dst interface{}, rows *sql.Rows, fields map[string]*structField, co
 		return sql.ErrNoRows
 	}
 
+	structVal := reflect.ValueOf(dst).Elem()
+
 	// prepare a list of targets
 	var targets []interface{}
 	for _, column := range columns {
 		if field, present := fields[column]; present {
+			value := structVal.Field(field.index).Addr()
 			if field.zeroIsNull {
 				// create a pointer to this element
-				ptr := reflect.New(field.value.Type()).Interface()
+				ptr := reflect.New(value.Type()).Interface()
 				targets = append(targets, ptr)
 			} else {
 				// point to the original element
-				targets = append(targets, field.value.Interface())
+				targets = append(targets, value.Interface())
 			}
 		} else {
 			// no destination, so throw this away
@@ -167,27 +131,122 @@ func scanRow(dst interface{}, rows *sql.Rows, fields map[string]*structField, co
 	// post-process
 	for i, column := range columns {
 		if field, present := fields[column]; present {
+			value := structVal.Field(field.index).Addr()
+
 			// convert null results to zero value
 			if field.zeroIsNull {
 				ptr := targets[i]
 				v := reflect.ValueOf(ptr)
 				if v.Elem().IsNil() {
 					// null column, so set target to be zero value
-					field.value.Elem().Set(reflect.Zero(field.value.Elem().Type()))
+					value.Elem().Set(reflect.Zero(value.Elem().Type()))
 				} else {
 					// copy the value that scan found
-					field.value.Elem().Set(v.Elem().Elem())
+					value.Elem().Set(v.Elem().Elem())
 				}
 			}
 
 			// convert time elements to local time zone
-			if field.value.Elem().Type().ConvertibleTo(typeOfTime) {
-				if t, okay := field.value.Elem().Interface().(time.Time); okay {
-					field.value.Elem().Set(reflect.ValueOf(t.Local()))
+			if value.Elem().Type().ConvertibleTo(typeOfTime) {
+				if t, okay := value.Elem().Interface().(time.Time); okay {
+					value.Elem().Set(reflect.ValueOf(t.Local()))
 				}
 			}
 		}
 	}
 
 	return rows.Err()
+}
+
+// ScanRow scans a single sql result row into a struct.
+// It leaves rows ready to be scanned again for the next row.
+// Returns sql.ErrNoRows if there is no data to read.
+func ScanRow(dst interface{}, rows *sql.Rows) error {
+	// get the list of struct fields
+	fields, err := getFields(reflect.TypeOf(dst))
+	if err != nil {
+		return err
+	}
+
+	// get the sql columns
+	columns, err := rows.Columns()
+	if err != nil {
+		return err
+	}
+
+	return scanRow(dst, rows, fields, columns)
+}
+
+// ScanOne scans a single sql result row into a struct.
+// It reads exactly one result row and closes rows when finished.
+// Returns sql.ErrNoRows if there is no result row.
+func ScanOne(dst interface{}, rows *sql.Rows) error {
+	// make sure we always close rows
+	defer rows.Close()
+
+	if err := ScanRow(dst, rows); err != nil {
+		return err
+	}
+	if err := rows.Close(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ScanAll scans all sql result rows into a slice of structs.
+// It reads all rows and closes rows when finished.
+// dst should be a pointer to a slice of the appropriate type.
+// The new results will be appended to any existing data in dst.
+func ScanAll(dst interface{}, rows *sql.Rows) error {
+	// make sure we always close rows
+	defer rows.Close()
+
+	// make sure dst is an appropriate type
+	dstVal := reflect.ValueOf(dst)
+	if dstVal.Kind() != reflect.Ptr || dstVal.IsNil() {
+		return fmt.Errorf("ScanAll called with non-pointer destination: %T", dst)
+	}
+	sliceVal := dstVal.Elem()
+	if sliceVal.Kind() != reflect.Slice {
+		return fmt.Errorf("ScanAll called with pointer to non-slice: %T", dst)
+	}
+	ptrType := sliceVal.Type().Elem()
+	if ptrType.Kind() != reflect.Ptr {
+		return fmt.Errorf("ScanAll expects element to be pointers, found %T", dst)
+	}
+	eltType := ptrType.Elem()
+	if eltType.Kind() != reflect.Struct {
+		return fmt.Errorf("ScanAll expects element to be pointers to structs, found %T", dst)
+	}
+
+	// get the list of struct fields
+	fields, err := getFields(ptrType)
+	if err != nil {
+		return err
+	}
+
+	// get the sql columns
+	columns, err := rows.Columns()
+	if err != nil {
+		return err
+	}
+
+	// gather the results
+	for {
+		// create a new element
+		eltVal := reflect.New(eltType)
+		elt := eltVal.Interface()
+
+		// scan it
+		if err := scanRow(elt, rows, fields, columns); err != nil {
+			if err == sql.ErrNoRows {
+				return nil
+			}
+			return err
+		}
+
+		// add to the result slice
+		sliceVal.Set(reflect.Append(sliceVal, eltVal))
+	}
 }
