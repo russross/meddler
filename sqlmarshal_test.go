@@ -14,16 +14,16 @@ var db *sql.DB
 var when = time.Date(2013, 6, 23, 15, 30, 12, 0, time.UTC)
 
 type Person struct {
-	ID        int64  `sqlmarshal:"id,primarykey"`
+	ID        int64  `sqlmarshal:",pk"`
 	Name      string `sqlmarshal:"name"`
 	private   int
-	Email     string
+	Email     string `sqlmarshal:"Email"`
 	Ephemeral int       `sqlmarshal:"-"`
-	Age       int       `sqlmarshal:",zeroisnull"`
-	Opened    time.Time `sqlmarshal:"opened"`
-	Closed    time.Time `sqlmarshal:"closed,zeroisnull"`
-	Updated    *time.Time `sqlmarshal:"updated,localtime"`
-	Height    *int      `sqlmarshal:"height"`
+	Age       int       `sqlmarshal:"Age,zeroisnull"`
+	Opened    time.Time `sqlmarshal:",utctime"`
+	Closed    time.Time `sqlmarshal:",utctimez"`
+	Updated    *time.Time `sqlmarshal:",localtime"`
+	Height    *int
 }
 
 const schema = `create table person (
@@ -68,20 +68,14 @@ func structFieldEqual(t *testing.T, elt *structField, ref *structField) {
 	if elt.column != ref.column {
 		t.Errorf("Column %s column found as %v", ref.column, elt.column)
 	}
-	if elt.zeroIsNull != ref.zeroIsNull {
-		t.Errorf("Column %s zeroIsNull found as %v", ref.column, elt.zeroIsNull)
-	}
 	if elt.primaryKey != ref.primaryKey {
 		t.Errorf("Column %s primaryKey found as %v", ref.column, elt.primaryKey)
 	}
-	if elt.localTime != ref.localTime {
-		t.Errorf("Column %s localTime found as %v", ref.column, elt.localTime)
-	}
-	if elt.utc != ref.utc {
-		t.Errorf("Column %s utc found as %v", ref.column, elt.utc)
-	}
 	if elt.index != ref.index {
 		t.Errorf("Column %s index found as %v", ref.column, elt.index)
+	}
+	if elt.meddler != ref.meddler {
+		t.Errorf("Column %s meddler mismatch", ref.column)
 	}
 }
 
@@ -96,14 +90,14 @@ func TestGetFields(t *testing.T) {
 	if len(fields) != 8 {
 		t.Errorf("Found %d fields, expected 8", len(fields))
 	}
-	structFieldEqual(t, fields["id"], &structField{"id", false, true, false, false, 0})
-	structFieldEqual(t, fields["name"], &structField{"name", false, false, false, false, 1})
-	structFieldEqual(t, fields["Email"], &structField{"Email", false, false, false, false, 3})
-	structFieldEqual(t, fields["Age"], &structField{"Age", true, false, false, false, 5})
-	structFieldEqual(t, fields["opened"], &structField{"opened", false, false, false, false, 6})
-	structFieldEqual(t, fields["closed"], &structField{"closed", true, false, false, false, 7})
-	structFieldEqual(t, fields["updated"], &structField{"updated", false, false, true, false, 8})
-	structFieldEqual(t, fields["height"], &structField{"height", false, false, false, false, 9})
+	structFieldEqual(t, fields["id"], &structField{"id", 0, true, registry["identity"]})
+	structFieldEqual(t, fields["name"], &structField{"name", 1, false, registry["identity"]})
+	structFieldEqual(t, fields["Email"], &structField{"Email", 3, false, registry["identity"]})
+	structFieldEqual(t, fields["Age"], &structField{"Age", 5, false, registry["zeroisnull"]})
+	structFieldEqual(t, fields["opened"], &structField{"opened", 6, false, registry["utctime"]})
+	structFieldEqual(t, fields["closed"], &structField{"closed", 7, false, registry["utctimez"]})
+	structFieldEqual(t, fields["updated"], &structField{"updated", 8, false, registry["localtime"]})
+	structFieldEqual(t, fields["height"], &structField{"height", 9, false, registry["identity"]})
 }
 
 func personEqual(t *testing.T, elt *Person, ref *Person) {

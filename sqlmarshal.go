@@ -5,21 +5,16 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
-	"time"
 )
-
-type structField struct {
-	column     string
-	zeroIsNull bool
-	primaryKey bool
-	localTime bool
-	utc bool
-	index int
-}
 
 const tagName = "sqlmarshal"
 
-var typeOfTime = reflect.TypeOf(time.Time{})
+type structField struct {
+	column     string
+	index int
+	primaryKey bool
+	meddler Meddler
+}
 
 func getFields(dstType reflect.Type) (map[string]*structField, error) {
 	// make sure dst is a non-nil pointer to a struct
@@ -51,51 +46,31 @@ func getFields(dstType reflect.Type) (map[string]*structField, error) {
 			continue
 		}
 
+		// default to the field name converted to lower case
+		name := strings.ToLower(f.Name)
+
 		// the tag can override the field name
-		name := f.Name
 		if len(tag) > 0 && tag[0] != "" {
 			name = tag[0]
 		}
 
-		// check for flags: zeroisnull and primarykey
-		zeroIsNull := false
+		// check for a meddler
 		primaryKey := false
-		localTime := false
-		utc := false
+		var meddler Meddler = registry["identity"]
 		for j := 1; j < len(tag); j++ {
-			switch tag[j] {
-			case "zeroisnull":
-				if f.Type.Kind() == reflect.Ptr {
-					return nil, fmt.Errorf("sqlmarshal found field %s which is marked zeroisnull but is a pointer", f.Name)
-				}
-				zeroIsNull = true
-			case "primarykey":
+			if tag[j] == "pk" {
 				if f.Type.Kind() == reflect.Ptr {
 					return nil, fmt.Errorf("sqlmarshal found field %s which is marked as the primary key but is a pointer", f.Name)
 				}
 				if foundPrimary {
 					return nil, fmt.Errorf("sqlmarshal found field %s which is marked as the primary key, but a primary key field was already found", f.Name)
 				}
-				primaryKey = true
 				foundPrimary = true
-			case "localtime", "utc":
-				if !f.Type.ConvertibleTo(typeOfTime) && (f.Type.Kind() != reflect.Ptr || !f.Type.Elem().ConvertibleTo(typeOfTime)) {
-					return nil, fmt.Errorf("sqlmarshal found field %s which is marked as localtime/utc but is %v, not a time.Time field", f.Name, f.Type)
-				}
-
-				if tag[j] == "localtime" {
-					if utc {
-						return nil, fmt.Errorf("sqlmarshal found field %s which is marked as localtime and utc", f.Name)
-					}
-					localTime = true
-				} else {
-					if localTime {
-						return nil, fmt.Errorf("sqlmarshal found field %s which is marked as localtime and utc", f.Name)
-					}
-					utc = true
-				}
-			default:
-				return nil, fmt.Errorf("sqlmarshal found unknown tag %s in field %s", tag[j], f.Name)
+				primaryKey = true
+			} else if m, present := registry[tag[j]]; present {
+				meddler = m
+			} else {
+				return nil, fmt.Errorf("sqlmarshal found field %s with meddler %s, but that meddler is not registered", f.Name, tag[j])
 			}
 		}
 
@@ -104,11 +79,9 @@ func getFields(dstType reflect.Type) (map[string]*structField, error) {
 		}
 		fields[name] = &structField{
 			column:     name,
-			zeroIsNull: zeroIsNull,
 			primaryKey: primaryKey,
-			localTime: localTime,
-			utc: utc,
 			index: i,
+			meddler: meddler,
 		}
 	}
 
@@ -130,15 +103,12 @@ func scanRow(dst interface{}, rows *sql.Rows, fields map[string]*structField, co
 	var targets []interface{}
 	for _, column := range columns {
 		if field, present := fields[column]; present {
-			value := structVal.Field(field.index).Addr()
-			if field.zeroIsNull {
-				// create a pointer to this element
-				ptr := reflect.New(value.Type()).Interface()
-				targets = append(targets, ptr)
-			} else {
-				// point to the original element
-				targets = append(targets, value.Interface())
+			fieldAddr := structVal.Field(field.index).Addr().Interface()
+			scanTarget, err := field.meddler.PreRead(fieldAddr)
+			if err != nil {
+				return fmt.Errorf("sqlmarshal.scanRow: error on column %s: %v", field.column, err)
 			}
+			targets = append(targets, scanTarget)
 		} else {
 			// no destination, so throw this away
 			targets = append(targets, &sql.RawBytes{})
@@ -153,37 +123,10 @@ func scanRow(dst interface{}, rows *sql.Rows, fields map[string]*structField, co
 	// post-process
 	for i, column := range columns {
 		if field, present := fields[column]; present {
-			value := structVal.Field(field.index).Addr()
-
-			// convert null results to zero value
-			if field.zeroIsNull {
-				ptr := targets[i]
-				v := reflect.ValueOf(ptr)
-				if v.Elem().IsNil() {
-					// null column, so set target to be zero value
-					value.Elem().Set(reflect.Zero(value.Elem().Type()))
-				} else {
-					// copy the value that scan found
-					value.Elem().Set(v.Elem().Elem())
-				}
-			}
-
-			// convert time elements to time zone
-			if field.localTime || field.utc {
-				v := value.Elem()
-				if v.Kind() == reflect.Ptr {
-					if v.IsNil() {
-						continue
-					}
-					v = v.Elem()
-				}
-				if t, okay := v.Interface().(time.Time); okay {
-					if field.localTime {
-						v.Set(reflect.ValueOf(t.Local()))
-					} else {
-						v.Set(reflect.ValueOf(t.UTC()))
-					}
-				}
+			fieldAddr := structVal.Field(field.index).Addr().Interface()
+			err := field.meddler.PostRead(fieldAddr, targets[i])
+			if err != nil {
+				return fmt.Errorf("sqlmarshal.scanRow: error on column %s: %v", field.column, err)
 			}
 		}
 	}
