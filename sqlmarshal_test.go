@@ -1,9 +1,9 @@
 package sqlmarshal
 
 import (
-	"reflect"
 	"database/sql"
 	_ "github.com/mattn/go-sqlite3"
+	"reflect"
 	"sync"
 	"testing"
 	"time"
@@ -14,16 +14,16 @@ var db *sql.DB
 var when = time.Date(2013, 6, 23, 15, 30, 12, 0, time.UTC)
 
 type Person struct {
-	ID        int64  `sqlmarshal:",pk"`
+	ID        int64  `sqlmarshal:"id,pk"`
 	Name      string `sqlmarshal:"name"`
 	private   int
-	Email     string `sqlmarshal:"Email"`
-	Ephemeral int       `sqlmarshal:"-"`
-	Age       int       `sqlmarshal:"Age,zeroisnull"`
-	Opened    time.Time `sqlmarshal:",utctime"`
-	Closed    time.Time `sqlmarshal:",utctimez"`
-	Updated    *time.Time `sqlmarshal:",localtime"`
-	Height    *int
+	Email     string
+	Ephemeral int        `sqlmarshal:"-"`
+	Age       int        `sqlmarshal:",zeroisnull"`
+	Opened    time.Time  `sqlmarshal:"opened,utctime"`
+	Closed    time.Time  `sqlmarshal:"closed,utctimez"`
+	Updated   *time.Time `sqlmarshal:"updated,localtime"`
+	Height    *int       `sqlmarshal:"height"`
 }
 
 const schema = `create table person (
@@ -138,7 +138,7 @@ func personEqual(t *testing.T, elt *Person, ref *Person) {
 		zone, _ := elt.Updated.Zone()
 		local, _ := when.Local().Zone()
 		if zone != local {
-			t.Errorf("Person %s Updated in time zone %v, expected %v", zone, local)
+			t.Errorf("Person %s Updated in time zone %v, expected %v", ref.Name, zone, local)
 		}
 	}
 	if (elt.Height == nil) != (ref.Height == nil) {
@@ -151,14 +151,14 @@ func personEqual(t *testing.T, elt *Person, ref *Person) {
 func TestScanOne(t *testing.T) {
 	once.Do(setup)
 
-	rows, err := db.Query("select * from person order by id")
+	rows, err := db.Query("select * from person where id in (1,2) order by id")
 	if err != nil {
 		t.Errorf("DB error on query: %v", err)
 		return
 	}
 
 	alice := new(Person)
-	if err = ScanRow(alice, rows); err != nil {
+	if err = ScanRow(rows, alice); err != nil {
 		t.Errorf("ScanRow error on Alice: %v", err)
 		return
 
@@ -169,7 +169,7 @@ func TestScanOne(t *testing.T) {
 	bob.Closed = time.Now()
 	bob.private = 14
 	bob.Ephemeral = 16
-	if err = ScanOne(bob, rows); err != nil {
+	if err = ScanOne(rows, bob); err != nil {
 		t.Errorf("ScanRow error on Bob: %v", err)
 		return
 	}
@@ -189,7 +189,7 @@ func TestScanAll(t *testing.T) {
 	}
 
 	var lst []*Person
-	if err = ScanAll(&lst, rows); err != nil {
+	if err = ScanAll(rows, &lst); err != nil {
 		t.Errorf("ScanAll error: %v", err)
 		return
 	}
@@ -202,4 +202,44 @@ func TestScanAll(t *testing.T) {
 	height := 65
 	personEqual(t, lst[0], &Person{1, "Alice", 0, "alice@alice.com", 0, 32, when, when, &when, &height})
 	personEqual(t, lst[1], &Person{2, "Bob", 0, "bob@bob.com", 0, 0, when, time.Time{}, nil, nil})
+}
+
+func TestSave(t *testing.T) {
+	once.Do(setup)
+
+	h := 73
+	chris := &Person{
+		ID:        0,
+		Name:      "Chris",
+		Email:     "chris@chris.com",
+		Ephemeral: 19,
+		Age:       23,
+		Opened:    when.Local(),
+		Closed:    when,
+		Updated:   nil,
+		Height:    &h,
+	}
+
+	tx, err := db.Begin()
+	if err != nil {
+		t.Errorf("DB error on begin: %v", err)
+	}
+	if err = Save(tx, "person", chris); err != nil {
+		t.Errorf("DB error on Save: %v", err)
+	}
+
+	id := chris.ID
+	if id != 3 {
+		t.Errorf("DB error on Save: expected ID of 3 but got %d", id)
+	}
+
+	chris.Email = "chris@chrischris.com"
+	chris.Age = 27
+
+	if err = Save(tx, "person", chris); err != nil {
+		t.Errorf("DB error on Save: %v", err)
+	}
+	if chris.ID != id {
+		t.Errorf("ID mismatch: found %d when %d expected", chris.ID, id)
+	}
 }

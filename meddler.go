@@ -2,13 +2,14 @@ package sqlmarshal
 
 import (
 	"fmt"
-	"time"
 	"reflect"
+	"time"
 )
 
 type Meddler interface {
 	PreRead(fieldAddr interface{}) (scanTarget interface{}, err error)
 	PostRead(fieldAddr interface{}, scanTarget interface{}) error
+	PreWrite(field interface{}) (saveValue interface{}, err error)
 }
 
 func Register(name string, m Meddler) {
@@ -21,10 +22,10 @@ func Register(name string, m Meddler) {
 var registry = make(map[string]Meddler)
 
 func init() {
-	Register("localtime", TimeMeddler{ ZeroIsNull: false, Local: true })
-	Register("localtimez", TimeMeddler{ ZeroIsNull: true, Local: true })
-	Register("utctime", TimeMeddler{ ZeroIsNull: false, Local: false })
-	Register("utctimez", TimeMeddler{ ZeroIsNull: true, Local: false })
+	Register("localtime", TimeMeddler{ZeroIsNull: false, Local: true})
+	Register("localtimez", TimeMeddler{ZeroIsNull: true, Local: true})
+	Register("utctime", TimeMeddler{ZeroIsNull: false, Local: false})
+	Register("utctimez", TimeMeddler{ZeroIsNull: true, Local: false})
 	Register("zeroisnull", ZeroIsNullMeddler(false))
 	Register("identity", IdentityMeddler(false))
 }
@@ -39,9 +40,13 @@ func (elt IdentityMeddler) PostRead(fieldAddr, scanTarget interface{}) error {
 	return nil
 }
 
+func (elt IdentityMeddler) PreWrite(field interface{}) (saveValue interface{}, err error) {
+	return field, nil
+}
+
 type TimeMeddler struct {
 	ZeroIsNull bool
-	Local bool
+	Local      bool
 }
 
 func (elt TimeMeddler) PreRead(fieldAddr interface{}) (scanTarget interface{}, err error) {
@@ -101,9 +106,28 @@ func (elt TimeMeddler) PostRead(fieldAddr, scanTarget interface{}) error {
 		}
 
 		return nil
-			
+
 	default:
 		return fmt.Errorf("sqlmarshal.TimeMeddler.PostRead: unknown struct field type: %T", fieldAddr)
+	}
+}
+
+func (elt TimeMeddler) PreWrite(field interface{}) (saveValue interface{}, err error) {
+	switch tgt := field.(type) {
+	case time.Time:
+		if elt.ZeroIsNull && tgt.IsZero() {
+			return nil, nil
+		}
+		return tgt.UTC(), nil
+
+	case *time.Time:
+		if tgt == nil || elt.ZeroIsNull && tgt.IsZero() {
+			return nil, nil
+		}
+		return tgt.UTC(), nil
+
+	default:
+		return nil, fmt.Errorf("sqlmarshal.TimeMeddler.PreWrite: unknown struct field type: %T", field)
 	}
 }
 
@@ -126,4 +150,38 @@ func (elt ZeroIsNullMeddler) PostRead(fieldAddr, scanTarget interface{}) error {
 		fv.Elem().Set(sv.Elem().Elem())
 	}
 	return nil
+}
+
+func (elt ZeroIsNullMeddler) PreWrite(field interface{}) (saveValue interface{}, err error) {
+	val := reflect.ValueOf(field)
+	switch val.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		if val.Int() == 0 {
+			return nil, nil
+		}
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		if val.Uint() == 0 {
+			return nil, nil
+		}
+	case reflect.Float32, reflect.Float64:
+		if val.Float() == 0 {
+			return nil, nil
+		}
+	case reflect.Complex64, reflect.Complex128:
+		if val.Complex() == 0 {
+			return nil, nil
+		}
+	case reflect.Ptr:
+		if val.IsNil() {
+			return nil, nil
+		}
+	case reflect.String:
+		if val.String() == "" {
+			return nil, nil
+		}
+	default:
+		return nil, fmt.Errorf("ZeroIsNullMeddler.PreWrite: unknown struct field type: %T", field)
+	}
+
+	return field, nil
 }
