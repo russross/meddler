@@ -325,3 +325,18 @@ func TestQuoted(t *testing.T) {
 		t.Errorf("Mismatch: expected %s, got %s", expected, names)
 	}
 }
+
+func TestLoad(t *testing.T) {
+	once.Do(setup)
+
+	bob := new(Person)
+	bob.Age = 50
+	bob.Closed = time.Now()
+	bob.private = 14
+	bob.Ephemeral = 16
+	if err := Load(db, "person", 2, bob); err != nil {
+		t.Errorf("Load error on Bob: %v", err)
+		return
+	}
+	personEqual(t, bob, &Person{2, "Bob", 14, "bob@bob.com", 16, 0, when, time.Time{}, nil, nil})
+}

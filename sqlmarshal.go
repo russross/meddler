@@ -20,11 +20,16 @@ type structField struct {
 	meddler    Meddler
 }
 
+type Db interface {
+	Exec(query string, args ...interface{}) (sql.Result, error)
+	Query(query string, args ...interface{}) (*sql.Rows, error)
+}
+
 // Save performs a REPLACE query to insert or update the given record.
 // If the record has a primary key flagged and it is zero, it will
 // omitted, and the result of LastInsertId will be stored in the
 // original struct for that field.
-func Save(tx *sql.Tx, table string, src interface{}) error {
+func Save(db Db, table string, src interface{}) error {
 	// get the list of fields
 	fields, err := getFields(reflect.TypeOf(src))
 	if err != nil {
@@ -81,7 +86,7 @@ func Save(tx *sql.Tx, table string, src interface{}) error {
 		strings.Join(columnNames, ","), strings.Join(columnValues, ","))
 
 	// run the query
-	result, err := tx.Exec(q, values...)
+	result, err := db.Exec(q, values...)
 	if err != nil {
 		return fmt.Errorf("sqlmarshal.Save: DB error in Exec: %v", err)
 	}
@@ -351,4 +356,29 @@ func ScanAll(rows *sql.Rows, dst interface{}) error {
 		// add to the result slice
 		sliceVal.Set(reflect.Append(sliceVal, eltVal))
 	}
+}
+
+// Load loads a record using a query for the primary key field.
+// Returns sql.ErrNoRows if not found.
+func Load(db Db, table string, pk int64, dst interface{}) error {
+	columns, primary, err := ColumnsQuoted(dst)
+	if err != nil {
+		return err
+	}
+
+	// make sure we have a primary key field
+	if primary == "" {
+		return fmt.Errorf("LoadByPk: no primary key field found")
+	}
+
+	// run the query
+	q := fmt.Sprintf("SELECT %s FROM %s WHERE %s = ?",
+		columns, Quote+table+Quote, primary)
+	rows, err := db.Query(q, pk)
+	if err != nil {
+		return fmt.Errorf("sqlmarshal.Load: DB error in Query: %v", err)
+	}
+
+	// scan the row
+	return ScanOne(rows, dst)
 }
