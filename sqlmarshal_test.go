@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	_ "github.com/mattn/go-sqlite3"
 	"reflect"
+	"sort"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -161,7 +163,6 @@ func TestScanOne(t *testing.T) {
 	if err = ScanRow(rows, alice); err != nil {
 		t.Errorf("ScanRow error on Alice: %v", err)
 		return
-
 	}
 
 	bob := new(Person)
@@ -241,5 +242,86 @@ func TestSave(t *testing.T) {
 	}
 	if chris.ID != id {
 		t.Errorf("ID mismatch: found %d when %d expected", chris.ID, id)
+	}
+	if err = tx.Commit(); err != nil {
+		t.Errorf("Commit error: %v", err)
+	}
+
+	// now test if the data looks right
+	rows, err := db.Query("select * from person where id = ?", id)
+	if err != nil {
+		t.Errorf("DB error on query: %v", err)
+		return
+	}
+
+	p := new(Person)
+	if err = ScanOne(rows, p); err != nil {
+		t.Errorf("ScanOne error on Chris: %v", err)
+		return
+	}
+
+	personEqual(t, p, &Person{3, "Chris", 0, "chris@chrischris.com", 0, 27, when, when, nil, &h})
+
+	// delete this record so we don't confuse other tests
+	if _, err = db.Exec("delete from person where id = ?", id); err != nil {
+		t.Errorf("DB error on delete: %v", err)
+	}
+}
+
+func TestColumns(t *testing.T) {
+	once.Do(setup)
+
+	p := new(Person)
+	names, pk, err := Columns(p)
+	if err != nil {
+		t.Errorf("Columns error: %v", err)
+	}
+
+	expected := []string{"id", "name", "Email", "Age", "opened", "closed", "updated", "height"}
+	sort.Strings(expected)
+
+	if pk != "id" {
+		t.Errorf("Columns returned %s as pk, expected %s", pk, "id")
+	}
+	if len(names) != len(expected) {
+		t.Errorf("Expected %d columns, got %d", len(expected), len(names))
+	}
+	sort.Strings(names)
+	for i := 0; i < len(expected); i++ {
+		if expected[i] != names[i] {
+			t.Errorf("Expected %s at position %d, got %s", expected[i], i, names[i])
+		}
+	}
+}
+
+func TestQuoted(t *testing.T) {
+	once.Do(setup)
+
+	p := new(Person)
+	names, pk, err := ColumnsQuoted(p)
+	if err != nil {
+		t.Errorf("ColumnsQuoted error: %v", err)
+	}
+
+	lst := []string{"id", "name", "Email", "Age", "opened", "closed", "updated", "height"}
+	sort.Strings(lst)
+	for i, orig := range lst {
+		lst[i] = Quote + orig + Quote
+	}
+	expected := strings.Join(lst, ",")
+
+	if pk != "id" {
+		t.Errorf("ColumnsQuoted returned %s as pk, expected %s", pk, "id")
+	}
+	if len(names) != len(expected) {
+		t.Errorf("Length mismatch: expected %d, got %d", len(expected), len(names))
+	}
+
+	fields := strings.Split(names, ",")
+	sort.Strings(fields)
+	names = strings.Join(fields, ",")
+
+	if expected != names {
+		t.Errorf("Mismatch: expected %s, got %s", expected, names)
 	}
 }

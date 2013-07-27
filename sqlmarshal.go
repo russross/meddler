@@ -105,11 +105,7 @@ func Columns(src interface{}) (names []string, pk string, err error) {
 	if err != nil {
 		return nil, "", err
 	}
-	names, pk = columns(fields)
-	return
-}
 
-func columns(fields map[string]*structField) (names []string, pk string) {
 	for _, elt := range fields {
 		names = append(names, elt.column)
 		if elt.primaryKey {
@@ -120,26 +116,22 @@ func columns(fields map[string]*structField) (names []string, pk string) {
 	return
 }
 
-// ColumnList is similar to Columns, but it return the list of columns in the form:
-//   "column1","column2",...
+// ColumnsQuoted is similar to Columns, but it return the list of columns in the form:
+//   `column1`,`column2`,...
 // using Quote as the quote character.
-func ColumnList(src interface{}) (names string, pk string, err error) {
-	var slice []string
-	slice, pk, err = Columns(src)
+func ColumnsQuoted(src interface{}) (names string, pk string, err error) {
+	var unquoted []string
+	unquoted, pk, err = Columns(src)
 	if err != nil {
 		return
 	}
-	names = columnList(slice)
-	return
-}
 
-func columnList(names []string) string {
 	var quoted []string
-	for _, elt := range names {
+	for _, elt := range unquoted {
 		quoted = append(quoted, Quote+elt+Quote)
 	}
 
-	return strings.Join(quoted, ",")
+	return strings.Join(quoted, ","), pk, nil
 }
 
 func getFields(dstType reflect.Type) (map[string]*structField, error) {
