@@ -158,7 +158,7 @@ func ColumnsQuoted(includePk bool, src interface{}) string {
 
 // PrimaryKey returns the name and value of the primary key field. The name
 // is the empty string if there is not primary key field marked.
-func PrimaryKey(src interface{}) (name string, value int64) {
+func PrimaryKey(src interface{}) (name string, pk int64) {
 	fields, err := getFields(reflect.TypeOf(src))
 	if err != nil {
 		panic("sqlscan.PrimaryKey: error scanning fields of struct: " + err.Error())
@@ -169,9 +169,9 @@ func PrimaryKey(src interface{}) (name string, value int64) {
 	}
 
 	name = fields[0].column
-	value = reflect.ValueOf(src).Elem().Field(fields[0].index).Int()
+	pk = reflect.ValueOf(src).Elem().Field(fields[0].index).Int()
 
-	return name, value
+	return name, pk
 }
 
 // SetPrimaryKey sets the primary key field to the given int64 value.
