@@ -23,7 +23,7 @@ type Person struct {
     ID      int       `sqlscan:"id,pk"`
     Name    string    `sqlscan:"name"`
     Created time.Time `sqlscan:"created,localtime"`
-    Closed  time.Time `sqlscan:",localtimez"
+    Closed  time.Time `sqlscan:",localtimez"`
 }
 ```
 
