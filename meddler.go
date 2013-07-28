@@ -1,4 +1,4 @@
-package sqlmarshal
+package sqlscan
 
 import (
 	"fmt"
@@ -6,15 +6,31 @@ import (
 	"time"
 )
 
+// Meddler is the interface for a field meddler. Implementations can be
+// registered to convert struct fields being loaded and saved in the database.
 type Meddler interface {
+	// PreRead is called before a Scan operation. It is given a pointer to
+	// the raw struct field, and returns the value that will be given to
+	// the database driver.
 	PreRead(fieldAddr interface{}) (scanTarget interface{}, err error)
+
+	// PostRead is called after a Scan operation. It is given the value returned
+	// by PreRead and a pointer to the raw struct field. It is expected to fill
+	// in the struct field if the two are different.
 	PostRead(fieldAddr interface{}, scanTarget interface{}) error
+
+	// PreWrite is called before an Insert or Update operation. It is given
+	// a pointer to the raw struct field, and returns the value that will be
+	// given to the database driver.
 	PreWrite(field interface{}) (saveValue interface{}, err error)
 }
 
+// Register sets up a meddler type. Meddlers get a chance to meddle with the
+// data being loaded or saved when a field is annotated with the name of the meddler.
+// The registry is global.
 func Register(name string, m Meddler) {
 	if name == "pk" {
-		panic("sqlmarshal.Register: pk cannot be used as a meddler name")
+		panic("sqlscan.Register: pk cannot be used as a meddler name")
 	}
 	registry[name] = m
 }
@@ -30,6 +46,8 @@ func init() {
 	Register("identity", IdentityMeddler(false))
 }
 
+// IdentityMeddler is the default meddler, and it passes the original value through with
+// no changes.
 type IdentityMeddler bool
 
 func (elt IdentityMeddler) PreRead(fieldAddr interface{}) (scanTarget interface{}, err error) {
@@ -44,6 +62,8 @@ func (elt IdentityMeddler) PreWrite(field interface{}) (saveValue interface{}, e
 	return field, nil
 }
 
+// TimeMeddler provides useful operations on time.Time fields. It can convert the zero time
+// to and from a null column, and it can convert the time zone to UTC on save and to Local on load.
 type TimeMeddler struct {
 	ZeroIsNull bool
 	Local      bool
@@ -58,11 +78,11 @@ func (elt TimeMeddler) PreRead(fieldAddr interface{}) (scanTarget interface{}, e
 		return fieldAddr, nil
 	case **time.Time:
 		if elt.ZeroIsNull {
-			return nil, fmt.Errorf("sqlmarshal.TimeMeddler cannot be used on a *time.Time field, only time.Time")
+			return nil, fmt.Errorf("sqlscan.TimeMeddler cannot be used on a *time.Time field, only time.Time")
 		}
 		return fieldAddr, nil
 	default:
-		return nil, fmt.Errorf("sqlmarshal.TimeMeddler.PreRead: unknown struct field type: %T", fieldAddr)
+		return nil, fmt.Errorf("sqlscan.TimeMeddler.PreRead: unknown struct field type: %T", fieldAddr)
 	}
 }
 
@@ -92,7 +112,7 @@ func (elt TimeMeddler) PostRead(fieldAddr, scanTarget interface{}) error {
 
 	case **time.Time:
 		if elt.ZeroIsNull {
-			return fmt.Errorf("sqlmarshal TimeMeddler cannot be used on a *time.Time field, only time.Time")
+			return fmt.Errorf("sqlscan TimeMeddler cannot be used on a *time.Time field, only time.Time")
 		}
 		src := scanTarget.(**time.Time)
 		if *src == nil {
@@ -108,7 +128,7 @@ func (elt TimeMeddler) PostRead(fieldAddr, scanTarget interface{}) error {
 		return nil
 
 	default:
-		return fmt.Errorf("sqlmarshal.TimeMeddler.PostRead: unknown struct field type: %T", fieldAddr)
+		return fmt.Errorf("sqlscan.TimeMeddler.PostRead: unknown struct field type: %T", fieldAddr)
 	}
 }
 
@@ -127,10 +147,12 @@ func (elt TimeMeddler) PreWrite(field interface{}) (saveValue interface{}, err e
 		return tgt.UTC(), nil
 
 	default:
-		return nil, fmt.Errorf("sqlmarshal.TimeMeddler.PreWrite: unknown struct field type: %T", field)
+		return nil, fmt.Errorf("sqlscan.TimeMeddler.PreWrite: unknown struct field type: %T", field)
 	}
 }
 
+// ZeroIsNullMeddler converts zero value fields (integers both signed and unsigned, floats, complex numbers,
+// and strings) to and from null database columns.
 type ZeroIsNullMeddler bool
 
 func (elt ZeroIsNullMeddler) PreRead(fieldAddr interface{}) (scanTarget interface{}, err error) {
@@ -169,10 +191,6 @@ func (elt ZeroIsNullMeddler) PreWrite(field interface{}) (saveValue interface{},
 		}
 	case reflect.Complex64, reflect.Complex128:
 		if val.Complex() == 0 {
-			return nil, nil
-		}
-	case reflect.Ptr:
-		if val.IsNil() {
 			return nil, nil
 		}
 	case reflect.String:
