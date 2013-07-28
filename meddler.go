@@ -1,6 +1,9 @@
 package sqlscan
 
 import (
+	"bytes"
+	"compress/gzip"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"time"
@@ -38,12 +41,14 @@ func Register(name string, m Meddler) {
 var registry = make(map[string]Meddler)
 
 func init() {
+	Register("identity", IdentityMeddler(false))
 	Register("localtime", TimeMeddler{ZeroIsNull: false, Local: true})
 	Register("localtimez", TimeMeddler{ZeroIsNull: true, Local: true})
 	Register("utctime", TimeMeddler{ZeroIsNull: false, Local: false})
 	Register("utctimez", TimeMeddler{ZeroIsNull: true, Local: false})
 	Register("zeroisnull", ZeroIsNullMeddler(false))
-	Register("identity", IdentityMeddler(false))
+	Register("json", JSONMeddler(false))
+	Register("jsongzip", JSONMeddler(true))
 }
 
 // IdentityMeddler is the default meddler, and it passes the original value through with
@@ -202,4 +207,71 @@ func (elt ZeroIsNullMeddler) PreWrite(field interface{}) (saveValue interface{},
 	}
 
 	return field, nil
+}
+
+type JSONMeddler bool
+
+func (zip JSONMeddler) PreRead(fieldAddr interface{}) (scanTarget interface{}, err error) {
+	// give a pointer to a byte buffer to grab the raw data
+	return new([]byte), nil
+}
+
+func (zip JSONMeddler) PostRead(fieldAddr, scanTarget interface{}) error {
+	ptr := scanTarget.(*[]byte)
+	if ptr == nil {
+		return fmt.Errorf("JSONMeddler.PostRead: nil pointer")
+	}
+	raw := *ptr
+
+	if zip {
+		// un-gzip and decode json
+		gzipReader, err := gzip.NewReader(bytes.NewReader(raw))
+		if err != nil {
+			return fmt.Errorf("Error creating gzip Reader: %v", err)
+		}
+		defer gzipReader.Close()
+		jsonDecoder := json.NewDecoder(gzipReader)
+		if err := jsonDecoder.Decode(fieldAddr); err != nil {
+			return fmt.Errorf("JSON decoder/gzip error: %v", err)
+		}
+		if err := gzipReader.Close(); err != nil {
+			return fmt.Errorf("Closing gzip reader: %v", err)
+		}
+
+		return nil
+	}
+
+	// decode json
+	jsonDecoder := json.NewDecoder(bytes.NewReader(raw))
+	if err := jsonDecoder.Decode(fieldAddr); err != nil {
+		return fmt.Errorf("JSON decode error: %v", err)
+	}
+
+	return nil
+}
+
+func (zip JSONMeddler) PreWrite(field interface{}) (saveValue interface{}, err error) {
+	buffer := new(bytes.Buffer)
+
+	if zip {
+		// json encode and gzip
+		gzipWriter := gzip.NewWriter(buffer)
+		defer gzipWriter.Close()
+		jsonEncoder := json.NewEncoder(gzipWriter)
+		if err := jsonEncoder.Encode(field); err != nil {
+			return nil, fmt.Errorf("JSON encoding/gzip error: %v", err)
+		}
+		if err := gzipWriter.Close(); err != nil {
+			return nil, fmt.Errorf("Closing gzip writer: %v", err)
+		}
+
+		return buffer.Bytes(), nil
+	}
+
+	// json encode
+	jsonEncoder := json.NewEncoder(buffer)
+	if err := jsonEncoder.Encode(field); err != nil {
+		return nil, fmt.Errorf("JSON encoding error: %v", err)
+	}
+	return buffer.Bytes(), nil
 }

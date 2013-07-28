@@ -29,7 +29,7 @@ type Person struct {
 	Height    *int       `sqlscan:"height"`
 }
 
-const schema = `create table person (
+const schema1 = `create table person (
 	id integer primary key,
 	name text not null,
 	Email text not null,
@@ -40,21 +40,27 @@ const schema = `create table person (
 	height integer
 )`
 
+const schema2 = `create table item (
+	id integer primary key,
+	stuff text not null,
+	stuffz blob not null
+)`
+
 var aliceHeight int = 65
 var alice = &Person{
-		Name: "Alice",
-		Email: "alice@alice.com",
-		Ephemeral: 12,
-		Age: 32,
-		Opened: when.Local(),
-		Closed: when,
-		Updated: &when,
-		Height: &aliceHeight,
+	Name:      "Alice",
+	Email:     "alice@alice.com",
+	Ephemeral: 12,
+	Age:       32,
+	Opened:    when.Local(),
+	Closed:    when,
+	Updated:   &when,
+	Height:    &aliceHeight,
 }
 
 var bob = &Person{
-	Name: "Bob",
-	Email: "bob@bob.com",
+	Name:   "Bob",
+	Email:  "bob@bob.com",
 	Opened: when,
 }
 
@@ -67,9 +73,12 @@ func setup() {
 		panic("error creating test database: " + err.Error())
 	}
 
-	// create the table
-	if _, err = db.Exec(schema); err != nil {
+	// create the tables
+	if _, err = db.Exec(schema1); err != nil {
 		panic("error creating person table: " + err.Error())
+	}
+	if _, err = db.Exec(schema2); err != nil {
+		panic("error creating item table: " + err.Error())
 	}
 }
 
@@ -168,7 +177,7 @@ func insertAliceBob(t *testing.T) {
 		t.Errorf("Error inserting Alice: %v", err)
 	}
 	if alice.ID != 1 {
-		t.Error("Alice ID is %d, expecting 1", alice.ID)
+		t.Errorf("Alice ID is %d, expecting 1", alice.ID)
 	}
 
 	// insert Bob as row #2
@@ -391,4 +400,3 @@ func TestScanAll(t *testing.T) {
 	personEqual(t, lst[1], &Person{2, "Bob", 0, "bob@bob.com", 0, 0, when, time.Time{}, nil, nil})
 	db.Exec("delete from person")
 }
-
