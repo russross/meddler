@@ -42,10 +42,11 @@ Notes about this example:
 *   Created is marked with "localtime". This means that it will be
     converted to UTC when being saved, and back to the local time
     zone when being loaded.
-*   Closed is marked as "localtimez". This has the same properties
-    as "localtime", except that the zero time will be saved in the
-    database as a null column (and null values will be loaded as the
-    zero time value).
+*   Closed has a column name of "Closed", since the tag did not
+    specify anything different. Closed is marked as "localtimez".
+    This has the same properties as "localtime", except that the
+    zero time will be saved in the database as a null column (and
+    null values will be loaded as the zero time value).
 
 sqlscan provides a few high-level functions (note: Db is an
 interface that works with a *sql.Db or a *sql.Tx):
