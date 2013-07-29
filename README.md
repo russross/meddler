@@ -77,6 +77,16 @@ sqlscan provides a few high-level functions:
     Pick Insert or Update automatically. If there is a non-zero
     primary key present, it uses Update, otherwise it uses Insert.
 
+*   QueryOne(db Db, dst interface{}, query string, args ...interface) error
+
+	Perform the given query, and scan the single-row result into
+	dst, which must be a pointer to a struct.
+
+*   QueryAll(db Db, dst interface{}, query string, args ...interface) error
+
+	Perform the given query, and scan the results into dst, which
+	must be a pointer to a slice of structs.
+
 sqlscan has a feature called "meddlers". A meddler is a handler that
 gets to meddle with a field before it is saved, or when it is
 loaded. "localtime" and "localtimez" are examples of built-in

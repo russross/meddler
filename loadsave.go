@@ -126,3 +126,30 @@ func Save(db Db, table string, src interface{}) error {
 		return Insert(db, table, src)
 	}
 }
+
+// QueryOne performs the given query with the given arguments, scanning a
+// single row of results into dst. Returns sql.ErrNoRows if there was no
+// result row.
+func QueryOne(db Db, dst interface{}, query string, args ...interface{}) error {
+	// perform the query
+	rows, err := db.Query(query, args...)
+	if err != nil {
+		return err
+	}
+
+	// gather the result
+	return ScanOne(rows, dst)
+}
+
+// QueryAll performs the given query with the given arguments, scanning
+// all results rows into dst.
+func QueryAll(db Db, dst interface{}, query string, args ...interface{}) error {
+	// perform the query
+	rows, err := db.Query(query, args...)
+	if err != nil {
+		return err
+	}
+
+	// gather the results
+	return ScanAll(rows, dst)
+}
