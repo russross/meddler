@@ -77,7 +77,7 @@ sqlscan provides a few high-level functions:
     Pick Insert or Update automatically. If there is a non-zero
     primary key present, it uses Update, otherwise it uses Insert.
 
-*   QueryOne(db Db, dst interface{}, query string, args ...interface) error
+*   QueryRow(db Db, dst interface{}, query string, args ...interface) error
 
 	Perform the given query, and scan the single-row result into
 	dst, which must be a pointer to a struct.
@@ -172,12 +172,12 @@ well:
 *   SavePlaceholdersString: the same thing, but merged into a
     single, comma-separated string.
 
-*   ScanRow: takes a *sql.Rows from your query and scans a single
+*   Scan: takes a *sql.Rows from your query and scans a single
     row of data into a struct, complete with meddlers. Can be called
     repeatedly to walk through all of the rows in a result set.
     Returns sql.ErrNoRows when there is no more data.
 
-*   ScanOne: similar to ScanRow, but guarantees that the rows object
+*   ScanRow: similar to Scan, but guarantees that the rows object
     is closed when it returns. Also returns sql.ErrNoRows if there
     was no row.
 

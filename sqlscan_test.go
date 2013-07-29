@@ -342,7 +342,7 @@ func TestSavePlaceholdersString(t *testing.T) {
 	Placeholder = "?"
 }
 
-func TestScanOne(t *testing.T) {
+func TestScanRow(t *testing.T) {
 	once.Do(setup)
 	insertAliceBob(t)
 
@@ -353,8 +353,8 @@ func TestScanOne(t *testing.T) {
 	}
 
 	alice := new(Person)
-	if err = ScanRow(rows, alice); err != nil {
-		t.Errorf("ScanRow error on Alice: %v", err)
+	if err = Scan(rows, alice); err != nil {
+		t.Errorf("Scan error on Alice: %v", err)
 		return
 	}
 
@@ -363,7 +363,7 @@ func TestScanOne(t *testing.T) {
 	bob.Closed = time.Now()
 	bob.private = 14
 	bob.Ephemeral = 16
-	if err = ScanOne(rows, bob); err != nil {
+	if err = ScanRow(rows, bob); err != nil {
 		t.Errorf("ScanRow error on Bob: %v", err)
 		return
 	}

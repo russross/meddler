@@ -295,10 +295,10 @@ func scanRow(rows *sql.Rows, fields []*structField, columns []string, dst interf
 	return rows.Err()
 }
 
-// ScanRow scans a single sql result row into a struct.
+// Scan scans a single sql result row into a struct.
 // It leaves rows ready to be scanned again for the next row.
 // Returns sql.ErrNoRows if there is no data to read.
-func ScanRow(rows *sql.Rows, dst interface{}) error {
+func Scan(rows *sql.Rows, dst interface{}) error {
 	// get the list of struct fields
 	fields, err := getFields(reflect.TypeOf(dst))
 	if err != nil {
@@ -314,14 +314,14 @@ func ScanRow(rows *sql.Rows, dst interface{}) error {
 	return scanRow(rows, fields, columns, dst)
 }
 
-// ScanOne scans a single sql result row into a struct.
+// ScanRow scans a single sql result row into a struct.
 // It reads exactly one result row and closes rows when finished.
 // Returns sql.ErrNoRows if there is no result row.
-func ScanOne(rows *sql.Rows, dst interface{}) error {
+func ScanRow(rows *sql.Rows, dst interface{}) error {
 	// make sure we always close rows
 	defer rows.Close()
 
-	if err := ScanRow(rows, dst); err != nil {
+	if err := Scan(rows, dst); err != nil {
 		return err
 	}
 	if err := rows.Close(); err != nil {

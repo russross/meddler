@@ -33,7 +33,7 @@ func Load(db Db, table string, pk int64, dst interface{}) error {
 	}
 
 	// scan the row
-	return ScanOne(rows, dst)
+	return ScanRow(rows, dst)
 }
 
 // Insert performs an INSERT query for the given record.
@@ -130,7 +130,7 @@ func Save(db Db, table string, src interface{}) error {
 // QueryOne performs the given query with the given arguments, scanning a
 // single row of results into dst. Returns sql.ErrNoRows if there was no
 // result row.
-func QueryOne(db Db, dst interface{}, query string, args ...interface{}) error {
+func QueryRow(db Db, dst interface{}, query string, args ...interface{}) error {
 	// perform the query
 	rows, err := db.Query(query, args...)
 	if err != nil {
@@ -138,7 +138,7 @@ func QueryOne(db Db, dst interface{}, query string, args ...interface{}) error {
 	}
 
 	// gather the result
-	return ScanOne(rows, dst)
+	return ScanRow(rows, dst)
 }
 
 // QueryAll performs the given query with the given arguments, scanning
