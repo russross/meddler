@@ -35,10 +35,10 @@ Notes about this example:
     so it will default to "Closed". Likewise, if there is no tag,
     the field name will be used.
 *   ID is marked as the primary key. Currently only integer primary
-    keys are supported. This is only relevant to a few of the
-    higher-level functions that need to understand primary keys.
-    sqlscan assumes that pk fields have an autoincrement mechanism
-    set in the database.
+    keys are supported. This is only relevant to Load, Save, Insert,
+    and Update, a few of the higher-level functions that need to
+    understand primary keys.  sqlscan assumes that pk fields have an
+    autoincrement mechanism set in the database.
 *   Created is marked with "localtime". This means that it will be
     converted to UTC when being saved, and back to the local time
     zone when being loaded.
@@ -47,7 +47,8 @@ Notes about this example:
     database as a null column (and null values will be loaded as the
     zero time value).
 
-sqlscan provides a few high-level functions:
+sqlscan provides a few high-level functions (note: Db is an
+interface that works with a *sql.Db or a *sql.Tx):
 
 *   Load(db Db, table string, pk int64, dst interface{}) error
 
@@ -60,6 +61,9 @@ sqlscan provides a few high-level functions:
     table, pk is the primary key value, and dst is a pointer to the
     struct where it should be stored.
 
+    Note: this call requires that the struct have an integer primary
+    key field marked.
+
 *   Insert(db Db, table string, src interface{}) error
 
     This inserts a new row into the database. If the struct value
@@ -67,25 +71,68 @@ sqlscan provides a few high-level functions:
     from the insert statement, prompting a default autoincrement
     value).
 
+    Note: this call requires that the struct have an integer primary
+    key field marked.
+
 *   Update(db Db, table string, src interface{}) error
 
     This updates an existing row. It must have a primary key, which
     must be non-zero.
+
+    Note: this call requires that the struct have an integer primary
+    key field marked.
 
 *   Save(db Db, table string, src interface{}) error
 
     Pick Insert or Update automatically. If there is a non-zero
     primary key present, it uses Update, otherwise it uses Insert.
 
+    Note: this call requires that the struct have an integer primary
+    key field marked.
+
 *   QueryRow(db Db, dst interface{}, query string, args ...interface) error
 
-	Perform the given query, and scan the single-row result into
-	dst, which must be a pointer to a struct.
+    Perform the given query, and scan the single-row result into
+    dst, which must be a pointer to a struct.
+
+    For example:
+
+        elt := new(Person)
+        err := sqlscan.QueryRow(db, elt, "select * from person where name = ?", "bob")
 
 *   QueryAll(db Db, dst interface{}, query string, args ...interface) error
 
-	Perform the given query, and scan the results into dst, which
-	must be a pointer to a slice of structs.
+    Perform the given query, and scan the results into dst, which
+    must be a pointer to a slice of structs.
+
+    For example:
+
+        var people []Person
+        err := sqlscan.QueryAll(db, &people, "select * from person")
+
+*   Scan(rows *sql.Rows, dst interface{}) error
+
+    Scans a single row of data into a struct, complete with
+    meddling. Can be called repeatedly to walk through all of the
+    rows in a result set. Returns sql.ErrNoRows when there is no
+    more data.
+
+*   ScanRow(rows *sql.Rows, dst interface{}) error
+
+    Similar to Scan, but guarantees that the rows object
+    is closed when it returns. Also returns sql.ErrNoRows if there
+    was no row.
+
+*   ScanAll(rows *sql.Rows, dst interface{}) error
+
+    Expects a pointer to a slice of structs, and appends as
+    many elements as it finds in the row set. Closes the row set
+    when it is finished. Does not return sql.ErrNoRows on an empty
+    set; instead it just does not add anything to the slice.
+
+
+Meddlers
+--------
 
 sqlscan has a feature called "meddlers". A meddler is a handler that
 gets to meddle with a field before it is saved, or when it is
@@ -98,7 +145,7 @@ meddlers. The full list of built-in meddlers includes:
     value to UTC on save, and back to the local time zone on loads.
     To set your local time zone, use something like:
 
-	os.Setenv("TZ", "America/Denver")
+        os.Setenv("TZ", "America/Denver")
 
     in your initial setup, before you start using time functions.
 
@@ -130,10 +177,9 @@ examples.
 Lower-level functions
 ---------------------
 
-If you do not want to use integer primary keys, or you are using
-more complex queries and just want to reduce the tedium of reading
-and writing values, there are some lower-level helper functions as
-well:
+If you are using more complex queries and just want to reduce the
+tedium of reading and writing values, there are some lower-level
+helper functions as well:
 
 *   Columns: gets a list of column names as extracted from a struct.
     You can optionally omit the primary key field. Columns will
@@ -147,12 +193,6 @@ well:
 
     The quote character is stored in sqlscan.Quote. It defaults to a
     backtick, but you can change it.
-
-*   PrimaryKey: returns the name of the primary key for a struct,
-    and its current value. Returns the empty string if no primary
-    key is marked.
-
-*   SetPrimaryKey: sets the primary key field for a struct.
 
 *   SaveValues: gets a list of values for the fields in a struct,
     complete with meddling. You can optionally omit the primary key
@@ -172,16 +212,8 @@ well:
 *   SavePlaceholdersString: the same thing, but merged into a
     single, comma-separated string.
 
-*   Scan: takes a *sql.Rows from your query and scans a single
-    row of data into a struct, complete with meddlers. Can be called
-    repeatedly to walk through all of the rows in a result set.
-    Returns sql.ErrNoRows when there is no more data.
+*   PrimaryKey: returns the name of the primary key for a struct,
+    and its current value. Returns the empty string if no primary
+    key is marked.
 
-*   ScanRow: similar to Scan, but guarantees that the rows object
-    is closed when it returns. Also returns sql.ErrNoRows if there
-    was no row.
-
-*   ScanAll: expects a pointer to a slice of structs, and appends as
-    many elements as it finds in the row set. Closes the row set
-    when it is finished. Does not return sql.ErrNoRows on an empty
-    set; instead it just does not add anything to the slice.
+*   SetPrimaryKey: sets the primary key field for a struct.
