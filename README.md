@@ -67,12 +67,12 @@ Notes about this example:
 Meddler provides a few high-level functions (note: DB is an
 interface that works with a *sql.DB or a *sql.Tx):
 
-*   Load(db DB, table string, pk int, dst interface{}) error
+*   Load(db DB, table string, dst interface{}, pk int) error
 
     This loads a single record by its primary key. For example:
 
         elt := new(Person)
-        err = meddler.Load(db, "person", 15, elt)
+        err = meddler.Load(db, "person", elt, 15)
 
     db can be a *sql.DB or a *sql.Tx. The table is the name of the
     table, pk is the primary key value, and dst is a pointer to the
