@@ -38,6 +38,8 @@ by annotating a struct:
 type Person struct {
     ID      int       `meddler:"id,pk"`
     Name    string    `meddler:"name"`
+    Age     int
+    salary  int
     Created time.Time `meddler:"created,localtime"`
     Closed  time.Time `meddler:",localtimez"`
 }
@@ -45,7 +47,6 @@ type Person struct {
 
 Notes about this example:
 
-*   Non-public fields are ignored by meddler
 *   If the optional tag is provided, the first field is the database
     column name. Note that "Closed" does not provide a column name,
     so it will default to "Closed". Likewise, if there is no tag,
@@ -55,6 +56,11 @@ Notes about this example:
     and Update, a few of the higher-level functions that need to
     understand primary keys. Meddler assumes that pk fields have an
     autoincrement mechanism set in the database.
+*   Age has a column name of "Age". A tag is only necessary when the
+    column name is not the same as the field name, or when you need
+    to select other options.
+*   salary is not an exported field, so meddler does not see it. It
+    will be ignored.
 *   Created is marked with "localtime". This means that it will be
     converted to UTC when being saved, and back to the local time
     zone when being loaded.
