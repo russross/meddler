@@ -194,7 +194,7 @@ func TestColumns(t *testing.T) {
 	once.Do(setup)
 
 	p := new(Person)
-	names, err := Columns(true, p)
+	names, err := Columns(p, true)
 	if err != nil {
 		t.Errorf("Error getting Columns: %v", err)
 	}
@@ -217,7 +217,7 @@ func TestColumnsQuoted(t *testing.T) {
 	once.Do(setup)
 
 	p := new(Person)
-	names, err := ColumnsQuoted(true, p)
+	names, err := ColumnsQuoted(p, true)
 	if err != nil {
 		t.Errorf("Error getting ColumnsQuoted: %v", err)
 	}
@@ -259,7 +259,7 @@ func TestPrimaryKey(t *testing.T) {
 
 func TestSetPrimaryKey(t *testing.T) {
 	p := new(Person)
-	err := SetPrimaryKey(14, p)
+	err := SetPrimaryKey(p, 14)
 	if err != nil {
 		t.Errorf("Error in SetPrimaryKey: %v", err)
 	}
@@ -268,11 +268,11 @@ func TestSetPrimaryKey(t *testing.T) {
 	}
 }
 
-func TestSaveValues(t *testing.T) {
+func TestValues(t *testing.T) {
 	alice.ID = 15
-	lst, err := SaveValues(true, alice)
+	lst, err := Values(alice, true)
 	if err != nil {
-		t.Errorf("SaveValues error: %v", err)
+		t.Errorf("Values error: %v", err)
 	}
 
 	if lst[0] != int64(15) {
@@ -300,20 +300,20 @@ func TestSaveValues(t *testing.T) {
 		t.Errorf("Expected %d, got %v", aliceHeight, lst[7])
 	}
 
-	lst, err = SaveValues(false, alice)
+	lst, err = Values(alice, false)
 	if err != nil {
-		t.Errorf("SaveValues error: %v", err)
+		t.Errorf("Values error: %v", err)
 	}
 	if lst[0] != "Alice" {
 		t.Errorf("Expected Alice, got %v", lst[0])
 	}
 }
 
-func TestSavePlaceholders(t *testing.T) {
+func TestPlaceholders(t *testing.T) {
 	Placeholder = "?"
-	lst, err := SavePlaceholders(true, alice)
+	lst, err := Placeholders(alice, true)
 	if err != nil {
-		t.Errorf("Error in SavePlaceholders: %v", err)
+		t.Errorf("Error in Placeholders: %v", err)
 	}
 	if len(lst) != 8 {
 		t.Errorf("expected 8 items, found %d", len(lst))
@@ -325,9 +325,9 @@ func TestSavePlaceholders(t *testing.T) {
 	}
 
 	Placeholder = "$1"
-	lst, err = SavePlaceholders(false, alice)
+	lst, err = Placeholders(alice, false)
 	if err != nil {
-		t.Errorf("Error in SavePlaceholders: %v", err)
+		t.Errorf("Error in Placeholders: %v", err)
 	}
 	if len(lst) != 7 {
 		t.Errorf("expected 7 items, found %d", len(lst))
@@ -342,11 +342,11 @@ func TestSavePlaceholders(t *testing.T) {
 	Placeholder = "?"
 }
 
-func TestSavePlaceholdersString(t *testing.T) {
+func TestPlaceholdersString(t *testing.T) {
 	Placeholder = "?"
-	s, err := SavePlaceholdersString(false, alice)
+	s, err := PlaceholdersString(alice, false)
 	if err != nil {
-		t.Errorf("Error in SavePlaceholdersString: %v", err)
+		t.Errorf("Error in PlaceholdersString: %v", err)
 	}
 	expected := "?,?,?,?,?,?,?"
 	if s != expected {
@@ -354,9 +354,9 @@ func TestSavePlaceholdersString(t *testing.T) {
 	}
 
 	Placeholder = "$1"
-	s, err = SavePlaceholdersString(true, alice)
+	s, err = PlaceholdersString(alice, true)
 	if err != nil {
-		t.Errorf("Error in SavePlaceholdersString: %v", err)
+		t.Errorf("Error in PlaceholdersString: %v", err)
 	}
 	expected = "$1,$2,$3,$4,$5,$6,$7,$8"
 	if s != expected {

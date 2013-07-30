@@ -34,7 +34,7 @@ func TestJsonMeddler(t *testing.T) {
 
 	// load it again
 	elt = new(Item)
-	if err := Load(db, "item", id, elt); err != nil {
+	if err := Load(db, "item", elt, id); err != nil {
 		t.Errorf("Load error: %v", err)
 	}
 

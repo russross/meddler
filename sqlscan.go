@@ -127,7 +127,7 @@ func getFields(dstType reflect.Type) (*structData, error) {
 }
 
 // Columns returns a list of column names for its input struct.
-func Columns(includePk bool, src interface{}) ([]string, error) {
+func Columns(src interface{}, includePk bool) ([]string, error) {
 	data, err := getFields(reflect.TypeOf(src))
 	if err != nil {
 		return nil, err
@@ -147,8 +147,8 @@ func Columns(includePk bool, src interface{}) ([]string, error) {
 // ColumnsQuoted is similar to Columns, but it return the list of columns in the form:
 //   `column1`,`column2`,...
 // using Quote as the quote character.
-func ColumnsQuoted(includePk bool, src interface{}) (string, error) {
-	unquoted, err := Columns(includePk, src)
+func ColumnsQuoted(src interface{}, includePk bool) (string, error) {
+	unquoted, err := Columns(src, includePk)
 	if err != nil {
 		return "", err
 	}
@@ -180,7 +180,7 @@ func PrimaryKey(src interface{}) (name string, pk int, err error) {
 }
 
 // SetPrimaryKey sets the primary key field to the given int value.
-func SetPrimaryKey(pk int, src interface{}) error {
+func SetPrimaryKey(src interface{}, pk int) error {
 	data, err := getFields(reflect.TypeOf(src))
 	if err != nil {
 		return err
@@ -195,22 +195,22 @@ func SetPrimaryKey(pk int, src interface{}) error {
 	return nil
 }
 
-// SaveValues returns a list of PreWrite processed values suitable for
+// Values returns a list of PreWrite processed values suitable for
 // use in an INSERT or UPDATE query. If includePk is false, the primary
 // key field is omitted. The columns used are the same ones (in the same
 // order) as returned by Columns.
-func SaveValues(includePk bool, src interface{}) ([]interface{}, error) {
-	columns, err := Columns(includePk, src)
+func Values(src interface{}, includePk bool) ([]interface{}, error) {
+	columns, err := Columns(src, includePk)
 	if err != nil {
 		return nil, err
 	}
-	return SaveSomeValues(columns, src)
+	return SomeValues(src, columns)
 }
 
-// SaveSomeValues returns a list of PreWrite processed values suitable for
+// SomeValues returns a list of PreWrite processed values suitable for
 // use in an INSERT or UPDATE query. The columns used are the same ones (in
 // the same order) as specified in the columns argument.
-func SaveSomeValues(columns []string, src interface{}) ([]interface{}, error) {
+func SomeValues(src interface{}, columns []string) ([]interface{}, error) {
 	data, err := getFields(reflect.TypeOf(src))
 	if err != nil {
 		return nil, err
@@ -225,14 +225,14 @@ func SaveSomeValues(columns []string, src interface{}) ([]interface{}, error) {
 			values = append(values, nil)
 
 			if Debug {
-				log.Printf("meddler.SaveSomeValues: column [%s] not found in struct", name)
+				log.Printf("meddler.SomeValues: column [%s] not found in struct", name)
 			}
 			continue
 		}
 
 		saveVal, err := field.meddler.PreWrite(structVal.Field(field.index).Interface())
 		if err != nil {
-			return nil, fmt.Errorf("meddler.SaveSomeValues: PreWrite error on column [%s]: %v", name, err)
+			return nil, fmt.Errorf("meddler.SomeValues: PreWrite error on column [%s]: %v", name, err)
 		}
 		values = append(values, saveVal)
 	}
@@ -240,9 +240,9 @@ func SaveSomeValues(columns []string, src interface{}) ([]interface{}, error) {
 	return values, nil
 }
 
-// SavePlaceholders returns a list of placeholders suitable for an INSERT or UPDATE query.
+// Placeholders returns a list of placeholders suitable for an INSERT or UPDATE query.
 // If includePk is false, the primary key field is omitted.
-func SavePlaceholders(includePk bool, src interface{}) ([]string, error) {
+func Placeholders(src interface{}, includePk bool) ([]string, error) {
 	data, err := getFields(reflect.TypeOf(src))
 	if err != nil {
 		return nil, err
@@ -260,12 +260,12 @@ func SavePlaceholders(includePk bool, src interface{}) ([]string, error) {
 	return placeholders, nil
 }
 
-// SavePlaceholdersString returns a list of placeholders suitable for an INSERT
+// PlaceholdersString returns a list of placeholders suitable for an INSERT
 // or UPDATE query in string form, e.g.:
 //   ?,?,?,?
 // if includePk is false, the primary key field is omitted.
-func SavePlaceholdersString(includePk bool, src interface{}) (string, error) {
-	lst, err := SavePlaceholders(includePk, src)
+func PlaceholdersString(src interface{}, includePk bool) (string, error) {
+	lst, err := Placeholders(src, includePk)
 	if err != nil {
 		return "", err
 	}
@@ -273,7 +273,7 @@ func SavePlaceholdersString(includePk bool, src interface{}) (string, error) {
 }
 
 // scan a single row of data into a struct.
-func scanRow(rows *sql.Rows, data *structData, columns []string, dst interface{}) error {
+func (data *structData) scanRow(rows *sql.Rows, dst interface{}, columns []string) error {
 	// check if there is data waiting
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
@@ -283,7 +283,7 @@ func scanRow(rows *sql.Rows, data *structData, columns []string, dst interface{}
 	}
 
 	// get a list of targets
-	targets, err := ScanTargets(columns, dst)
+	targets, err := Targets(dst, columns)
 	if err != nil {
 		return err
 	}
@@ -294,18 +294,18 @@ func scanRow(rows *sql.Rows, data *structData, columns []string, dst interface{}
 	}
 
 	// post-process and copy the target values into the struct
-	if err := ScanSaveTargets(columns, targets, dst); err != nil {
+	if err := WriteTargets(dst, columns, targets); err != nil {
 		return err
 	}
 
 	return rows.Err()
 }
 
-// ScanTargets returns a list of values suitable for handing to a
+// Targets returns a list of values suitable for handing to a
 // Scan function in the sql package, complete with meddling. After
 // the Scan is performed, the same values should be handed to
-// ScanSaveTargets to finalize the values and record them in the struct.
-func ScanTargets(columns []string, dst interface{}) ([]interface{}, error) {
+// WriteTargets to finalize the values and record them in the struct.
+func Targets(dst interface{}, columns []string) ([]interface{}, error) {
 	data, err := getFields(reflect.TypeOf(dst))
 	if err != nil {
 		return nil, err
@@ -319,7 +319,7 @@ func ScanTargets(columns []string, dst interface{}) ([]interface{}, error) {
 			fieldAddr := structVal.Field(field.index).Addr().Interface()
 			scanTarget, err := field.meddler.PreRead(fieldAddr)
 			if err != nil {
-				return nil, fmt.Errorf("meddler.ScanTargets: PreRead error on column %s: %v", name, err)
+				return nil, fmt.Errorf("meddler.Targets: PreRead error on column %s: %v", name, err)
 			}
 			targets = append(targets, scanTarget)
 		} else {
@@ -327,7 +327,7 @@ func ScanTargets(columns []string, dst interface{}) ([]interface{}, error) {
 			targets = append(targets, &sql.RawBytes{})
 
 			if Debug {
-				log.Printf("meddler.ScanTargets: column [%s] not found in struct", name)
+				log.Printf("meddler.Targets: column [%s] not found in struct", name)
 			}
 		}
 	}
@@ -335,12 +335,12 @@ func ScanTargets(columns []string, dst interface{}) ([]interface{}, error) {
 	return targets, nil
 }
 
-// ScanSaveTargets post-processes values with meddlers after a Scan from the
+// WriteTargets post-processes values with meddlers after a Scan from the
 // sql package has been performed. The list of targets is normally produced
-// by ScanTargets.
-func ScanSaveTargets(columns []string, targets []interface{}, dst interface{}) error {
+// by Targets.
+func WriteTargets(dst interface{}, columns []string, targets []interface{}) error {
 	if len(columns) != len(targets) {
-		return fmt.Errorf("meddler.ScanSaveTargets: mismatch in number of columns (%d) and targets (%s)",
+		return fmt.Errorf("meddler.WriteTargets: mismatch in number of columns (%d) and targets (%s)",
 			len(columns), len(targets))
 	}
 
@@ -355,12 +355,12 @@ func ScanSaveTargets(columns []string, targets []interface{}, dst interface{}) e
 			fieldAddr := structVal.Field(field.index).Addr().Interface()
 			err := field.meddler.PostRead(fieldAddr, targets[i])
 			if err != nil {
-				return fmt.Errorf("meddler.ScanSaveTargets: PostRead error on column [%s]: %v", name, err)
+				return fmt.Errorf("meddler.WriteTargets: PostRead error on column [%s]: %v", name, err)
 			}
 		} else {
 			// not destination, so throw this away
 			if Debug {
-				log.Printf("meddler.ScanSaveTargets: column [%s] not found in struct", name)
+				log.Printf("meddler.WriteTargets: column [%s] not found in struct", name)
 			}
 		}
 	}
@@ -384,7 +384,7 @@ func Scan(rows *sql.Rows, dst interface{}) error {
 		return err
 	}
 
-	return scanRow(rows, data, columns, dst)
+	return data.scanRow(rows, dst, columns)
 }
 
 // ScanRow scans a single sql result row into a struct.
@@ -449,7 +449,7 @@ func ScanAll(rows *sql.Rows, dst interface{}) error {
 		elt := eltVal.Interface()
 
 		// scan it
-		if err := scanRow(rows, data, columns, elt); err != nil {
+		if err := data.scanRow(rows, elt, columns); err != nil {
 			if err == sql.ErrNoRows {
 				return nil
 			}

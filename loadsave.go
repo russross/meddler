@@ -16,8 +16,8 @@ type DB interface {
 
 // Load loads a record using a query for the primary key field.
 // Returns sql.ErrNoRows if not found.
-func Load(db DB, table string, pk int, dst interface{}) error {
-	columns, err := ColumnsQuoted(true, dst)
+func Load(db DB, table string, dst interface{}, pk int) error {
+	columns, err := ColumnsQuoted(dst, true)
 	if err != nil {
 		return err
 	}
@@ -57,15 +57,15 @@ func Insert(db DB, table string, src interface{}) error {
 	}
 
 	// gather the query parts
-	namesPart, err := ColumnsQuoted(false, src)
+	namesPart, err := ColumnsQuoted(src, false)
 	if err != nil {
 		return err
 	}
-	valuesPart, err := SavePlaceholdersString(false, src)
+	valuesPart, err := PlaceholdersString(src, false)
 	if err != nil {
 		return err
 	}
-	values, err := SaveValues(false, src)
+	values, err := Values(src, false)
 	if err != nil {
 		return err
 	}
@@ -80,7 +80,7 @@ func Insert(db DB, table string, src interface{}) error {
 		if err != nil {
 			return fmt.Errorf("meddler.Insert: DB error in QueryRow: %v", err)
 		}
-		if err = SetPrimaryKey(newPk, src); err != nil {
+		if err = SetPrimaryKey(src, newPk); err != nil {
 			return fmt.Errorf("meddler.Insert: Error saving updated pk: %v", err)
 		}
 	} else if pkName != "" {
@@ -94,7 +94,7 @@ func Insert(db DB, table string, src interface{}) error {
 		if err != nil {
 			return fmt.Errorf("meddler.Insert: DB error getting new primary key value: %v", err)
 		}
-		if err = SetPrimaryKey(int(newPk), src); err != nil {
+		if err = SetPrimaryKey(src, int(newPk)); err != nil {
 			return fmt.Errorf("meddler.Insert: Error saving updated pk: %v", err)
 		}
 	} else {
@@ -113,15 +113,15 @@ func Insert(db DB, table string, src interface{}) error {
 // and it will be used to select the database row that gets updated.
 func Update(db DB, table string, src interface{}) error {
 	// gather the query parts
-	names, err := Columns(false, src)
+	names, err := Columns(src, false)
 	if err != nil {
 		return err
 	}
-	placeholders, err := SavePlaceholders(false, src)
+	placeholders, err := Placeholders(src, false)
 	if err != nil {
 		return err
 	}
-	values, err := SaveValues(false, src)
+	values, err := Values(src, false)
 	if err != nil {
 		return err
 	}

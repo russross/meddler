@@ -12,7 +12,7 @@ func TestLoad(t *testing.T) {
 	elt := new(Person)
 	elt.Age = 50
 	elt.Closed = time.Now()
-	if err := Load(db, "person", 2, elt); err != nil {
+	if err := Load(db, "person", elt, 2); err != nil {
 		t.Errorf("Load error on Bob: %v", err)
 		return
 	}
