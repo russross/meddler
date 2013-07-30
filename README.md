@@ -78,7 +78,7 @@ interface that works with a *sql.DB or a *sql.Tx):
     This loads a single record by its primary key. For example:
 
         elt := new(Person)
-        err = meddler.Load(db, "person", elt, 15)
+        err := meddler.Load(db, "person", elt, 15)
 
     db can be a *sql.DB or a *sql.Tx. The table is the name of the
     table, pk is the primary key value, and dst is a pointer to the
@@ -93,6 +93,14 @@ interface that works with a *sql.DB or a *sql.Tx):
     has a primary key field, it must be zero (and will be omitted
     from the insert statement, prompting a default autoincrement
     value).
+
+        elt := &Person{
+            Name: "Alice",
+            Age: 22,
+            // ...
+        }
+        err := meddler.Insert(db, "person", elt)
+        // elt.ID is updated to the value assigned by the database
 
 *   Update(db DB, table string, src interface{}) error
 
