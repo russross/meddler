@@ -54,24 +54,24 @@ Notes about this example:
     zero time will be saved in the database as a null column (and
     null values will be loaded as the zero time value).
 
-sqlscan provides a few high-level functions (note: Db is an
-interface that works with a *sql.Db or a *sql.Tx):
+sqlscan provides a few high-level functions (note: DB is an
+interface that works with a *sql.DB or a *sql.Tx):
 
-*   Load(db Db, table string, pk int, dst interface{}) error
+*   Load(db DB, table string, pk int, dst interface{}) error
 
     This loads a single record by its primary key. For example:
 
         elt := new(Person)
         err = sqlscan.Load(db, "person", 15, elt)
 
-    db can be a *sql.Db or a *sql.Tx. The table is the name of the
+    db can be a *sql.DB or a *sql.Tx. The table is the name of the
     table, pk is the primary key value, and dst is a pointer to the
     struct where it should be stored.
 
     Note: this call requires that the struct have an integer primary
     key field marked.
 
-*   Insert(db Db, table string, src interface{}) error
+*   Insert(db DB, table string, src interface{}) error
 
     This inserts a new row into the database. If the struct value
     has a primary key field, it must be zero (and will be omitted
@@ -81,7 +81,7 @@ interface that works with a *sql.Db or a *sql.Tx):
     Note: this call requires that the struct have an integer primary
     key field marked.
 
-*   Update(db Db, table string, src interface{}) error
+*   Update(db DB, table string, src interface{}) error
 
     This updates an existing row. It must have a primary key, which
     must be non-zero.
@@ -89,7 +89,7 @@ interface that works with a *sql.Db or a *sql.Tx):
     Note: this call requires that the struct have an integer primary
     key field marked.
 
-*   Save(db Db, table string, src interface{}) error
+*   Save(db DB, table string, src interface{}) error
 
     Pick Insert or Update automatically. If there is a non-zero
     primary key present, it uses Update, otherwise it uses Insert.
@@ -97,7 +97,7 @@ interface that works with a *sql.Db or a *sql.Tx):
     Note: this call requires that the struct have an integer primary
     key field marked.
 
-*   QueryRow(db Db, dst interface{}, query string, args ...interface) error
+*   QueryRow(db DB, dst interface{}, query string, args ...interface) error
 
     Perform the given query, and scan the single-row result into
     dst, which must be a pointer to a struct.
@@ -107,7 +107,7 @@ interface that works with a *sql.Db or a *sql.Tx):
         elt := new(Person)
         err := sqlscan.QueryRow(db, elt, "select * from person where name = ?", "bob")
 
-*   QueryAll(db Db, dst interface{}, query string, args ...interface) error
+*   QueryAll(db DB, dst interface{}, query string, args ...interface) error
 
     Perform the given query, and scan the results into dst, which
     must be a pointer to a slice of structs.

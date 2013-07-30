@@ -7,8 +7,8 @@ import (
 	"strings"
 )
 
-// Db is a generic database interface, matching both *sql.Db and *sql.Tx
-type Db interface {
+// DB is a generic database interface, matching both *sql.Db and *sql.Tx
+type DB interface {
 	Exec(query string, args ...interface{}) (sql.Result, error)
 	Query(query string, args ...interface{}) (*sql.Rows, error)
 	QueryRow(query string, args ...interface{}) *sql.Row
@@ -16,7 +16,7 @@ type Db interface {
 
 // Load loads a record using a query for the primary key field.
 // Returns sql.ErrNoRows if not found.
-func Load(db Db, table string, pk int, dst interface{}) error {
+func Load(db DB, table string, pk int, dst interface{}) error {
 	columns, err := ColumnsQuoted(true, dst)
 	if err != nil {
 		return err
@@ -47,7 +47,7 @@ func Load(db Db, table string, pk int, dst interface{}) error {
 // If the record has a primary key flagged, it must be zero, and it
 // will be set to the newly-allocated primary key value from the database
 // as returned by LastInsertId.
-func Insert(db Db, table string, src interface{}) error {
+func Insert(db DB, table string, src interface{}) error {
 	pkName, pkValue, err := PrimaryKey(src)
 	if err != nil {
 		return err
@@ -111,7 +111,7 @@ func Insert(db Db, table string, src interface{}) error {
 // Update performs and UPDATE query for the given record.
 // The record must have an integer primary key field that is non-zero,
 // and it will be used to select the database row that gets updated.
-func Update(db Db, table string, src interface{}) error {
+func Update(db DB, table string, src interface{}) error {
 	// gather the query parts
 	names, err := Columns(false, src)
 	if err != nil {
@@ -160,7 +160,7 @@ func Update(db Db, table string, src interface{}) error {
 
 // Save performs an INSERT or an UPDATE, depending on whether or not
 // a primary keys exists and is non-zero.
-func Save(db Db, table string, src interface{}) error {
+func Save(db DB, table string, src interface{}) error {
 	pkName, pkValue, err := PrimaryKey(src)
 	if err != nil {
 		return err
@@ -175,7 +175,7 @@ func Save(db Db, table string, src interface{}) error {
 // QueryOne performs the given query with the given arguments, scanning a
 // single row of results into dst. Returns sql.ErrNoRows if there was no
 // result row.
-func QueryRow(db Db, dst interface{}, query string, args ...interface{}) error {
+func QueryRow(db DB, dst interface{}, query string, args ...interface{}) error {
 	// perform the query
 	rows, err := db.Query(query, args...)
 	if err != nil {
@@ -188,7 +188,7 @@ func QueryRow(db Db, dst interface{}, query string, args ...interface{}) error {
 
 // QueryAll performs the given query with the given arguments, scanning
 // all results rows into dst.
-func QueryAll(db Db, dst interface{}, query string, args ...interface{}) error {
+func QueryAll(db DB, dst interface{}, query string, args ...interface{}) error {
 	// perform the query
 	rows, err := db.Query(query, args...)
 	if err != nil {
