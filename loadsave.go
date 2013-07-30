@@ -11,15 +11,22 @@ import (
 type Db interface {
 	Exec(query string, args ...interface{}) (sql.Result, error)
 	Query(query string, args ...interface{}) (*sql.Rows, error)
+	QueryRow(query string, args ...interface{}) *sql.Row
 }
 
 // Load loads a record using a query for the primary key field.
 // Returns sql.ErrNoRows if not found.
 func Load(db Db, table string, pk int, dst interface{}) error {
-	columns := ColumnsQuoted(true, dst)
+	columns, err := ColumnsQuoted(true, dst)
+	if err != nil {
+		return err
+	}
 
 	// make sure we have a primary key field
-	pkName, _ := PrimaryKey(dst)
+	pkName, _, err := PrimaryKey(dst)
+	if err != nil {
+		return err
+	}
 	if pkName == "" {
 		return fmt.Errorf("sqlscan.Load: no primary key field found")
 	}
@@ -41,14 +48,23 @@ func Load(db Db, table string, pk int, dst interface{}) error {
 // will be set to the newly-allocated primary key value from the database
 // as returned by LastInsertId.
 func Insert(db Db, table string, src interface{}) error {
-	pkName, pkValue := PrimaryKey(src)
+	pkName, pkValue, err := PrimaryKey(src)
+	if err != nil {
+		return err
+	}
 	if pkName != "" && pkValue != 0 {
 		return fmt.Errorf("sqlscan.Insert: primary key must be zero")
 	}
 
 	// gather the query parts
-	namesPart := ColumnsQuoted(false, src)
-	valuesPart := SavePlaceholdersString(false, src)
+	namesPart, err := ColumnsQuoted(false, src)
+	if err != nil {
+		return err
+	}
+	valuesPart, err := SavePlaceholdersString(false, src)
+	if err != nil {
+		return err
+	}
 	values, err := SaveValues(false, src)
 	if err != nil {
 		return err
@@ -57,19 +73,36 @@ func Insert(db Db, table string, src interface{}) error {
 	// run the query
 	q := fmt.Sprintf("INSERT INTO %s%s%s (%s) VALUES (%s)", Quote, table, Quote,
 		namesPart, valuesPart)
+	if PostgreSQL && pkName != "" {
+		q += " RETURNING " + Quote + pkName + Quote
+		var newPk int
+		err := db.QueryRow(q, values...).Scan(&newPk)
+		if err != nil {
+			return fmt.Errorf("sqlscan.Insert: DB error in QueryRow: %v", err)
+		}
+		if err = SetPrimaryKey(newPk, src); err != nil {
+			return fmt.Errorf("sqlscan.Insert: Error saving updated pk: %v", err)
+		}
+	} else if pkName != "" {
+		result, err := db.Exec(q, values...)
+		if err != nil {
+			return fmt.Errorf("sqlscan.Insert: DB error in Exec: %v", err)
+		}
 
-	result, err := db.Exec(q, values...)
-	if err != nil {
-		return fmt.Errorf("sqlscan.Insert: DB error in Exec: %v", err)
-	}
-
-	// check for updated primary key
-	if pkName != "" {
+		// save the new primary key
 		newPk, err := result.LastInsertId()
 		if err != nil {
 			return fmt.Errorf("sqlscan.Insert: DB error getting new primary key value: %v", err)
 		}
-		SetPrimaryKey(int(newPk), src)
+		if err = SetPrimaryKey(int(newPk), src); err != nil {
+			return fmt.Errorf("sqlscan.Insert: Error saving updated pk: %v", err)
+		}
+	} else {
+		// no primary key, so no need to lookup new value
+		_, err := db.Exec(q, values...)
+		if err != nil {
+			return fmt.Errorf("sqlscan.Insert: DB error in Exec: %v", err)
+		}
 	}
 
 	return nil
@@ -80,8 +113,14 @@ func Insert(db Db, table string, src interface{}) error {
 // and it will be used to select the database row that gets updated.
 func Update(db Db, table string, src interface{}) error {
 	// gather the query parts
-	names := Columns(false, src)
-	placeholders := SavePlaceholders(false, src)
+	names, err := Columns(false, src)
+	if err != nil {
+		return err
+	}
+	placeholders, err := SavePlaceholders(false, src)
+	if err != nil {
+		return err
+	}
 	values, err := SaveValues(false, src)
 	if err != nil {
 		return err
@@ -94,7 +133,10 @@ func Update(db Db, table string, src interface{}) error {
 		pairs = append(pairs, pair)
 	}
 
-	pkName, pkValue := PrimaryKey(src)
+	pkName, pkValue, err := PrimaryKey(src)
+	if err != nil {
+		return err
+	}
 	if pkName == "" {
 		return fmt.Errorf("sqlscan.Update: no primary key field")
 	}
@@ -119,7 +161,10 @@ func Update(db Db, table string, src interface{}) error {
 // Save performs an INSERT or an UPDATE, depending on whether or not
 // a primary keys exists and is non-zero.
 func Save(db Db, table string, src interface{}) error {
-	pkName, pkValue := PrimaryKey(src)
+	pkName, pkValue, err := PrimaryKey(src)
+	if err != nil {
+		return err
+	}
 	if pkName != "" && pkValue != 0 {
 		return Update(db, table, src)
 	} else {

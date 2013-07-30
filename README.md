@@ -6,9 +6,15 @@ generate insert and update statements based on structs.
 
 Package docs: http://godoc.org/github.com/russross/sqlscan
 
-This is currently designed for Sqlite and MySQL. The low-level
-functions should be fine on PostgreSQL, but the high-level ones will
-probably run into trouble.
+This is currently designed for Sqlite, MySQL, and PostgreSQL, though
+it has not been tested on PostgreSQL. If you test it, please let me
+know if it works or not and I will update this README.
+
+To use with PostgreSQL, set the following:
+
+    sqlscan.Quote = "\""
+	sqlscan.Placeholder = "$1"
+	sqlscan.PostgreSQL = true
 
 
 High-level functions
@@ -180,41 +186,6 @@ Lower-level functions
 
 If you are using more complex queries and just want to reduce the
 tedium of reading and writing values, there are some lower-level
-helper functions as well:
-
-*   Columns: gets a list of column names as extracted from a struct.
-    You can optionally omit the primary key field. Columns will
-    always be returned in the same order: primary key first, others
-    in the order they appeared in the struct.
-
-*   ColumnsQuoted: similar, but quotes the column names, giving a
-    list suitable for dropping in a SQL query. For example:
-
-        `id`,`name`,`created`,`Closed`
-
-    The quote character is stored in sqlscan.Quote. It defaults to a
-    backtick, but you can change it.
-
-*   SaveValues: gets a list of values for the fields in a struct,
-    complete with meddling. You can optionally omit the primary key
-    value. This is handy for rolling your own Insert and Update
-    queries. The values will be in the same order as returned by
-    Columns and ColumnsQuoted.
-
-*   SavePlaceholders: generate a list of placeholders, e.g. question
-    marks, with the right number to match the columns in the struct.
-    The placeholder is stored in sqlscan.Placeholder, and can be
-    changed. If it contains the digit 1, the 1 will be replaced with
-    the position in the list. For example, if Placeholder is "$1", a
-    generated list would be something like:
-
-        []string{ "$1", "$2", "$3", "$4" }
-
-*   SavePlaceholdersString: the same thing, but merged into a
-    single, comma-separated string.
-
-*   PrimaryKey: returns the name of the primary key for a struct,
-    and its current value. Returns the empty string if no primary
-    key is marked.
-
-*   SetPrimaryKey: sets the primary key field for a struct.
+helper functions as well. See the package docs for details, and
+see the implementations of the higher-level functions to see how
+they are used.
