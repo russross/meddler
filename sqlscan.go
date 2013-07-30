@@ -11,11 +11,14 @@ import (
 // the name of our struct tag
 const tagName = "sqlscan"
 
-// Quote is the quote character for table and column names. "`" works for sqlite and mysql, "\"" for ANSI
+// Quote is the quote character for table and column names. "`" works for sqlite and mysql, "\"" for postgresql
 var Quote = "`"
 
 // Placeholder is the SQL value placeholder. "?" works for sqlite and mysql, "$1" for postgresql
 var Placeholder = "?"
+
+// Debug enables debug mode, where unused columns and struct fields will be logged
+var Debug = true
 
 type structField struct {
 	column     string
@@ -24,11 +27,17 @@ type structField struct {
 	meddler    Meddler
 }
 
+type structData struct {
+	columns []string
+	fields  map[string]*structField
+	pk      string
+}
+
 // cache reflection data
-var fieldsCache = make(map[reflect.Type][]*structField)
+var fieldsCache = make(map[reflect.Type]*structData)
 
 // getFields gathers the list of columns from a struct using reflection.
-func getFields(dstType reflect.Type) ([]*structField, error) {
+func getFields(dstType reflect.Type) (*structData, error) {
 	if result, present := fieldsCache[dstType]; present {
 		return result, nil
 	}
@@ -43,10 +52,9 @@ func getFields(dstType reflect.Type) ([]*structField, error) {
 	}
 
 	// gather the list of fields in the struct
-	var fields []*structField
-	dups := make(map[string]bool)
+	data := new(structData)
+	data.fields = make(map[string]*structField)
 
-	foundPrimary := false
 	for i := 0; i < structType.NumField(); i++ {
 		f := structType.Field(i)
 
@@ -72,7 +80,6 @@ func getFields(dstType reflect.Type) ([]*structField, error) {
 		}
 
 		// check for a meddler
-		primaryKey := false
 		var meddler Meddler = registry["identity"]
 		for j := 1; j < len(tag); j++ {
 			if tag[j] == "pk" {
@@ -87,11 +94,10 @@ func getFields(dstType reflect.Type) ([]*structField, error) {
 					return nil, fmt.Errorf("sqlscan found field %s which is marked as the primary key, but is not an integer type", f.Name)
 				}
 
-				if foundPrimary {
+				if data.pk != "" {
 					return nil, fmt.Errorf("sqlscan found field %s which is marked as the primary key, but a primary key field was already found", f.Name)
 				}
-				foundPrimary = true
-				primaryKey = true
+				data.pk = name
 			} else if m, present := registry[tag[j]]; present {
 				meddler = m
 			} else {
@@ -99,43 +105,36 @@ func getFields(dstType reflect.Type) ([]*structField, error) {
 			}
 		}
 
-		if dups[name] {
+		if _, present := data.fields[name]; present {
 			return nil, fmt.Errorf("sqlscan found multiple fields for column %s", name)
 		}
-		dups[name] = true
-		field := &structField{
+		data.fields[name] = &structField{
 			column:     name,
-			primaryKey: primaryKey,
+			primaryKey: name == data.pk,
 			index:      i,
 			meddler:    meddler,
 		}
-
-		// always put the primary key at the front of the list
-		if primaryKey {
-			fields = append([]*structField{field}, fields...)
-		} else {
-			fields = append(fields, field)
-		}
+		data.columns = append(data.columns, name)
 	}
 
-	fieldsCache[dstType] = fields
-	return fields, nil
+	fieldsCache[dstType] = data
+	return data, nil
 }
 
 // Columns returns a list of column names for its input struct.
 // Will panic if the struct contains fields that it does not know how to handle.
 func Columns(includePk bool, src interface{}) []string {
-	fields, err := getFields(reflect.TypeOf(src))
+	data, err := getFields(reflect.TypeOf(src))
 	if err != nil {
 		panic("sqlscan.Columns: error scanning fields of struct: " + err.Error())
 	}
 
 	var names []string
-	for _, elt := range fields {
-		if elt.primaryKey && !includePk {
+	for _, elt := range data.columns {
+		if !includePk && elt == data.pk {
 			continue
 		}
-		names = append(names, elt.column)
+		names = append(names, elt)
 	}
 
 	return names
@@ -159,17 +158,17 @@ func ColumnsQuoted(includePk bool, src interface{}) string {
 // PrimaryKey returns the name and value of the primary key field. The name
 // is the empty string if there is not primary key field marked.
 func PrimaryKey(src interface{}) (name string, pk int) {
-	fields, err := getFields(reflect.TypeOf(src))
+	data, err := getFields(reflect.TypeOf(src))
 	if err != nil {
 		panic("sqlscan.PrimaryKey: error scanning fields of struct: " + err.Error())
 	}
 
-	if len(fields) == 0 || !fields[0].primaryKey {
+	if data.pk == "" {
 		return "", 0
 	}
 
-	name = fields[0].column
-	pk = int(reflect.ValueOf(src).Elem().Field(fields[0].index).Int())
+	name = data.pk
+	pk = int(reflect.ValueOf(src).Elem().Field(data.fields[name].index).Int())
 
 	return name, pk
 }
@@ -177,33 +176,34 @@ func PrimaryKey(src interface{}) (name string, pk int) {
 // SetPrimaryKey sets the primary key field to the given int value.
 // Will panic if there is not primary key, or if it is not of an integer type.
 func SetPrimaryKey(pk int, src interface{}) {
-	fields, err := getFields(reflect.TypeOf(src))
+	data, err := getFields(reflect.TypeOf(src))
 	if err != nil {
 		panic("sqlscan.SetPrimaryKey: error scanning fields of struct: " + err.Error())
 	}
 
-	if len(fields) == 0 || !fields[0].primaryKey {
+	if data.pk == "" {
 		panic("sqlscan.SetPrimaryKey: no primary key field found")
 	}
 
-	reflect.ValueOf(src).Elem().Field(fields[0].index).SetInt(int64(pk))
+	reflect.ValueOf(src).Elem().Field(data.fields[data.pk].index).SetInt(int64(pk))
 }
 
 // SaveValues returns a list of PreWrite processed values suitable for
 // use in an INSERT or UPDATE query. If includePk is false, the primary
 // key field is omitted.
 func SaveValues(includePk bool, src interface{}) ([]interface{}, error) {
-	fields, err := getFields(reflect.TypeOf(src))
+	data, err := getFields(reflect.TypeOf(src))
 	if err != nil {
 		return nil, err
 	}
 	structVal := reflect.ValueOf(src).Elem()
 
 	var values []interface{}
-	for _, field := range fields {
-		if field.primaryKey && !includePk {
+	for _, name := range data.columns {
+		if !includePk && name == data.pk {
 			continue
 		}
+		field := data.fields[name]
 		saveVal, err := field.meddler.PreWrite(structVal.Field(field.index).Interface())
 		if err != nil {
 			return nil, fmt.Errorf("sqlscan.SaveValues: PreWrite error on column %s: %v", field.column, err)
@@ -217,14 +217,14 @@ func SaveValues(includePk bool, src interface{}) ([]interface{}, error) {
 // SavePlaceholders returns a list of placeholders suitable for an INSERT or UPDATE query.
 // If includePk is false, the primary key field is omitted.
 func SavePlaceholders(includePk bool, src interface{}) []string {
-	fields, err := getFields(reflect.TypeOf(src))
+	data, err := getFields(reflect.TypeOf(src))
 	if err != nil {
 		panic("sqlscan.SavePlaceholdersList: error scanning fields of struct: " + err.Error())
 	}
 
 	var placeholders []string
-	for _, field := range fields {
-		if field.primaryKey && !includePk {
+	for _, name := range data.columns {
+		if !includePk && name == data.pk {
 			continue
 		}
 		ph := strings.Replace(Placeholder, "1", strconv.FormatInt(int64(len(placeholders)+1), 10), 1)
@@ -243,7 +243,7 @@ func SavePlaceholdersString(includePk bool, src interface{}) string {
 }
 
 // scan a single row of data into a struct.
-func scanRow(rows *sql.Rows, fields []*structField, columns []string, dst interface{}) error {
+func scanRow(rows *sql.Rows, data *structData, columns []string, dst interface{}) error {
 	// check if there is data waiting
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
@@ -253,16 +253,11 @@ func scanRow(rows *sql.Rows, fields []*structField, columns []string, dst interf
 	}
 
 	structVal := reflect.ValueOf(dst).Elem()
-	index := make(map[string]int)
-	for i, elt := range fields {
-		index[elt.column] = i
-	}
 
 	// prepare a list of targets
 	var targets []interface{}
 	for _, column := range columns {
-		if n, present := index[column]; present {
-			field := fields[n]
+		if field, present := data.fields[column]; present {
 			fieldAddr := structVal.Field(field.index).Addr().Interface()
 			scanTarget, err := field.meddler.PreRead(fieldAddr)
 			if err != nil {
@@ -282,8 +277,7 @@ func scanRow(rows *sql.Rows, fields []*structField, columns []string, dst interf
 
 	// post-process
 	for i, column := range columns {
-		if n, present := index[column]; present {
-			field := fields[n]
+		if field, present := data.fields[column]; present {
 			fieldAddr := structVal.Field(field.index).Addr().Interface()
 			err := field.meddler.PostRead(fieldAddr, targets[i])
 			if err != nil {
@@ -300,7 +294,7 @@ func scanRow(rows *sql.Rows, fields []*structField, columns []string, dst interf
 // Returns sql.ErrNoRows if there is no data to read.
 func Scan(rows *sql.Rows, dst interface{}) error {
 	// get the list of struct fields
-	fields, err := getFields(reflect.TypeOf(dst))
+	data, err := getFields(reflect.TypeOf(dst))
 	if err != nil {
 		return err
 	}
@@ -311,7 +305,7 @@ func Scan(rows *sql.Rows, dst interface{}) error {
 		return err
 	}
 
-	return scanRow(rows, fields, columns, dst)
+	return scanRow(rows, data, columns, dst)
 }
 
 // ScanRow scans a single sql result row into a struct.
@@ -358,7 +352,7 @@ func ScanAll(rows *sql.Rows, dst interface{}) error {
 	}
 
 	// get the list of struct fields
-	fields, err := getFields(ptrType)
+	data, err := getFields(ptrType)
 	if err != nil {
 		return err
 	}
@@ -376,7 +370,7 @@ func ScanAll(rows *sql.Rows, dst interface{}) error {
 		elt := eltVal.Interface()
 
 		// scan it
-		if err := scanRow(rows, fields, columns, elt); err != nil {
+		if err := scanRow(rows, data, columns, elt); err != nil {
 			if err == sql.ErrNoRows {
 				return nil
 			}

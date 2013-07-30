@@ -102,24 +102,24 @@ func structFieldEqual(t *testing.T, elt *structField, ref *structField) {
 }
 
 func TestGetFields(t *testing.T) {
-	fields, err := getFields(reflect.TypeOf((*Person)(nil)))
+	data, err := getFields(reflect.TypeOf((*Person)(nil)))
 	if err != nil {
 		t.Errorf("Error in getFields: %v", err)
 		return
 	}
 
 	// see if everything checks out
-	if len(fields) != 8 {
-		t.Errorf("Found %d fields, expected 8", len(fields))
+	if len(data.fields) != 8 || len(data.columns) != 8 {
+		t.Errorf("Found %d/%d fields, expected 8", len(data.fields), len(data.columns))
 	}
-	structFieldEqual(t, fields[0], &structField{"id", 0, true, registry["identity"]})
-	structFieldEqual(t, fields[1], &structField{"name", 1, false, registry["identity"]})
-	structFieldEqual(t, fields[2], &structField{"Email", 3, false, registry["identity"]})
-	structFieldEqual(t, fields[3], &structField{"Age", 5, false, registry["zeroisnull"]})
-	structFieldEqual(t, fields[4], &structField{"opened", 6, false, registry["utctime"]})
-	structFieldEqual(t, fields[5], &structField{"closed", 7, false, registry["utctimez"]})
-	structFieldEqual(t, fields[6], &structField{"updated", 8, false, registry["localtime"]})
-	structFieldEqual(t, fields[7], &structField{"height", 9, false, registry["identity"]})
+	structFieldEqual(t, data.fields[data.columns[0]], &structField{"id", 0, true, registry["identity"]})
+	structFieldEqual(t, data.fields[data.columns[1]], &structField{"name", 1, false, registry["identity"]})
+	structFieldEqual(t, data.fields[data.columns[2]], &structField{"Email", 3, false, registry["identity"]})
+	structFieldEqual(t, data.fields[data.columns[3]], &structField{"Age", 5, false, registry["zeroisnull"]})
+	structFieldEqual(t, data.fields[data.columns[4]], &structField{"opened", 6, false, registry["utctime"]})
+	structFieldEqual(t, data.fields[data.columns[5]], &structField{"closed", 7, false, registry["utctimez"]})
+	structFieldEqual(t, data.fields[data.columns[6]], &structField{"updated", 8, false, registry["localtime"]})
+	structFieldEqual(t, data.fields[data.columns[7]], &structField{"height", 9, false, registry["identity"]})
 }
 
 func personEqual(t *testing.T, elt *Person, ref *Person) {
