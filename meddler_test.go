@@ -1,13 +1,13 @@
-package sqlscan
+package meddler
 
 import (
 	"testing"
 )
 
 type Item struct {
-	ID     int             `sqlscan:"id,pk"`
-	Stuff  map[string]bool `sqlscan:"stuff,json"`
-	StuffZ map[string]bool `sqlscan:"stuffz,jsongzip"`
+	ID     int             `meddler:"id,pk"`
+	Stuff  map[string]bool `meddler:"stuff,json"`
+	StuffZ map[string]bool `meddler:"stuffz,jsongzip"`
 }
 
 func TestJsonMeddler(t *testing.T) {

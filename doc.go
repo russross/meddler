@@ -1,5 +1,5 @@
 /*
-sqlscan is a small toolkit to take some of the tedium out of moving data
+Meddler is a small toolkit to take some of the tedium out of moving data
 back and forth between sql queries and structs.
 
 It is not a complete ORM. It is intended to be lightweight way to add some
@@ -8,11 +8,11 @@ programmer.
 
 Package docs are available at:
 
-	http://godoc.org/github.com/russross/sqlscan
+	http://godoc.org/github.com/russross/meddler
 
 The package is housed on github, and the README there has more info:
 
-	http://github.com/russross/sqlscan
+	http://github.com/russross/meddler
 
 */
-package sqlscan
+package meddler

@@ -1,4 +1,4 @@
-package sqlscan
+package meddler
 
 import (
 	"testing"

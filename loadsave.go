@@ -1,4 +1,4 @@
-package sqlscan
+package meddler
 
 import (
 	"database/sql"
@@ -28,7 +28,7 @@ func Load(db DB, table string, pk int, dst interface{}) error {
 		return err
 	}
 	if pkName == "" {
-		return fmt.Errorf("sqlscan.Load: no primary key field found")
+		return fmt.Errorf("meddler.Load: no primary key field found")
 	}
 
 	// run the query
@@ -36,7 +36,7 @@ func Load(db DB, table string, pk int, dst interface{}) error {
 
 	rows, err := db.Query(q, pk)
 	if err != nil {
-		return fmt.Errorf("sqlscan.Load: DB error in Query: %v", err)
+		return fmt.Errorf("meddler.Load: DB error in Query: %v", err)
 	}
 
 	// scan the row
@@ -53,7 +53,7 @@ func Insert(db DB, table string, src interface{}) error {
 		return err
 	}
 	if pkName != "" && pkValue != 0 {
-		return fmt.Errorf("sqlscan.Insert: primary key must be zero")
+		return fmt.Errorf("meddler.Insert: primary key must be zero")
 	}
 
 	// gather the query parts
@@ -78,30 +78,30 @@ func Insert(db DB, table string, src interface{}) error {
 		var newPk int
 		err := db.QueryRow(q, values...).Scan(&newPk)
 		if err != nil {
-			return fmt.Errorf("sqlscan.Insert: DB error in QueryRow: %v", err)
+			return fmt.Errorf("meddler.Insert: DB error in QueryRow: %v", err)
 		}
 		if err = SetPrimaryKey(newPk, src); err != nil {
-			return fmt.Errorf("sqlscan.Insert: Error saving updated pk: %v", err)
+			return fmt.Errorf("meddler.Insert: Error saving updated pk: %v", err)
 		}
 	} else if pkName != "" {
 		result, err := db.Exec(q, values...)
 		if err != nil {
-			return fmt.Errorf("sqlscan.Insert: DB error in Exec: %v", err)
+			return fmt.Errorf("meddler.Insert: DB error in Exec: %v", err)
 		}
 
 		// save the new primary key
 		newPk, err := result.LastInsertId()
 		if err != nil {
-			return fmt.Errorf("sqlscan.Insert: DB error getting new primary key value: %v", err)
+			return fmt.Errorf("meddler.Insert: DB error getting new primary key value: %v", err)
 		}
 		if err = SetPrimaryKey(int(newPk), src); err != nil {
-			return fmt.Errorf("sqlscan.Insert: Error saving updated pk: %v", err)
+			return fmt.Errorf("meddler.Insert: Error saving updated pk: %v", err)
 		}
 	} else {
 		// no primary key, so no need to lookup new value
 		_, err := db.Exec(q, values...)
 		if err != nil {
-			return fmt.Errorf("sqlscan.Insert: DB error in Exec: %v", err)
+			return fmt.Errorf("meddler.Insert: DB error in Exec: %v", err)
 		}
 	}
 
@@ -138,10 +138,10 @@ func Update(db DB, table string, src interface{}) error {
 		return err
 	}
 	if pkName == "" {
-		return fmt.Errorf("sqlscan.Update: no primary key field")
+		return fmt.Errorf("meddler.Update: no primary key field")
 	}
 	if pkValue < 1 {
-		return fmt.Errorf("sqlscan.Update: primary key must be an integer > 0")
+		return fmt.Errorf("meddler.Update: primary key must be an integer > 0")
 	}
 	ph := strings.Replace(Placeholder, "1", strconv.FormatInt(int64(len(placeholders)+1), 10), 1)
 
@@ -152,7 +152,7 @@ func Update(db DB, table string, src interface{}) error {
 	values = append(values, pkValue)
 
 	if _, err := db.Exec(q, values...); err != nil {
-		return fmt.Errorf("sqlscan.Update: DB error in Exec: %v", err)
+		return fmt.Errorf("meddler.Update: DB error in Exec: %v", err)
 	}
 
 	return nil

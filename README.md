@@ -1,10 +1,20 @@
-sqlscan
+Meddler
 =======
 
-A small toolkit to automatically scan sql results into structs and
-generate insert and update statements based on structs.
+Meddler is a small toolkit to take some of the tedium out of moving data
+back and forth between sql queries and structs.
 
-Package docs: http://godoc.org/github.com/russross/sqlscan
+It is not a complete ORM. It is intended to be lightweight way to add some
+of the convenience of an ORM while leaving more control in the hands of the
+programmer.
+
+Package docs are available at:
+
+* http://godoc.org/github.com/russross/meddler
+
+The package is housed on github, and the README there has more info:
+
+* http://github.com/russross/meddler
 
 This is currently designed for Sqlite, MySQL, and PostgreSQL, though
 it has not been tested on PostgreSQL. If you test it, please let me
@@ -12,30 +22,30 @@ know if it works or not and I will update this README.
 
 To use with PostgreSQL, set the following:
 
-    sqlscan.Quote = "\""
-	sqlscan.Placeholder = "$1"
-	sqlscan.PostgreSQL = true
+    meddler.Quote = "\""
+    meddler.Placeholder = "$1"
+    meddler.PostgreSQL = true
 
 
 High-level functions
 --------------------
 
-sqlscan does not create or alter tables. It just provides a little
+Meddler does not create or alter tables. It just provides a little
 glue to make it easier to read and write structs as SQL rows. Start
 by annotating a struct:
 
 ``` go
 type Person struct {
-    ID      int       `sqlscan:"id,pk"`
-    Name    string    `sqlscan:"name"`
-    Created time.Time `sqlscan:"created,localtime"`
-    Closed  time.Time `sqlscan:",localtimez"`
+    ID      int       `meddler:"id,pk"`
+    Name    string    `meddler:"name"`
+    Created time.Time `meddler:"created,localtime"`
+    Closed  time.Time `meddler:",localtimez"`
 }
 ```
 
 Notes about this example:
 
-*   Non-public fields are ignored by sqlscan
+*   Non-public fields are ignored by meddler
 *   If the optional tag is provided, the first field is the database
     column name. Note that "Closed" does not provide a column name,
     so it will default to "Closed". Likewise, if there is no tag,
@@ -43,7 +53,7 @@ Notes about this example:
 *   ID is marked as the primary key. Currently only integer primary
     keys are supported. This is only relevant to Load, Save, Insert,
     and Update, a few of the higher-level functions that need to
-    understand primary keys.  sqlscan assumes that pk fields have an
+    understand primary keys. Meddler assumes that pk fields have an
     autoincrement mechanism set in the database.
 *   Created is marked with "localtime". This means that it will be
     converted to UTC when being saved, and back to the local time
@@ -54,7 +64,7 @@ Notes about this example:
     zero time will be saved in the database as a null column (and
     null values will be loaded as the zero time value).
 
-sqlscan provides a few high-level functions (note: DB is an
+Meddler provides a few high-level functions (note: DB is an
 interface that works with a *sql.DB or a *sql.Tx):
 
 *   Load(db DB, table string, pk int, dst interface{}) error
@@ -62,7 +72,7 @@ interface that works with a *sql.DB or a *sql.Tx):
     This loads a single record by its primary key. For example:
 
         elt := new(Person)
-        err = sqlscan.Load(db, "person", 15, elt)
+        err = meddler.Load(db, "person", 15, elt)
 
     db can be a *sql.DB or a *sql.Tx. The table is the name of the
     table, pk is the primary key value, and dst is a pointer to the
@@ -102,7 +112,7 @@ interface that works with a *sql.DB or a *sql.Tx):
     For example:
 
         elt := new(Person)
-        err := sqlscan.QueryRow(db, elt, "select * from person where name = ?", "bob")
+        err := meddler.QueryRow(db, elt, "select * from person where name = ?", "bob")
 
 *   QueryAll(db DB, dst interface{}, query string, args ...interface) error
 
@@ -112,7 +122,7 @@ interface that works with a *sql.DB or a *sql.Tx):
     For example:
 
         var people []Person
-        err := sqlscan.QueryAll(db, &people, "select * from person")
+        err := meddler.QueryAll(db, &people, "select * from person")
 
 *   Scan(rows *sql.Rows, dst interface{}) error
 
@@ -138,10 +148,10 @@ interface that works with a *sql.DB or a *sql.Tx):
 Meddlers
 --------
 
-sqlscan has a feature called "meddlers". A meddler is a handler that
-gets to meddle with a field before it is saved, or when it is
-loaded. "localtime" and "localtimez" are examples of built-in
-meddlers. The full list of built-in meddlers includes:
+A meddler is a handler that gets to meddle with a field before it is
+saved, or when it is loaded. "localtime" and "localtimez" are
+examples of built-in meddlers. The full list of built-in meddlers
+includes:
 
 *   identity: the default meddler, which does not do anything
 

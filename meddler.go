@@ -1,4 +1,4 @@
-package sqlscan
+package meddler
 
 import (
 	"bytes"
@@ -33,7 +33,7 @@ type Meddler interface {
 // The registry is global.
 func Register(name string, m Meddler) {
 	if name == "pk" {
-		panic("sqlscan.Register: pk cannot be used as a meddler name")
+		panic("meddler.Register: pk cannot be used as a meddler name")
 	}
 	registry[name] = m
 }
@@ -83,11 +83,11 @@ func (elt TimeMeddler) PreRead(fieldAddr interface{}) (scanTarget interface{}, e
 		return fieldAddr, nil
 	case **time.Time:
 		if elt.ZeroIsNull {
-			return nil, fmt.Errorf("sqlscan.TimeMeddler cannot be used on a *time.Time field, only time.Time")
+			return nil, fmt.Errorf("meddler.TimeMeddler cannot be used on a *time.Time field, only time.Time")
 		}
 		return fieldAddr, nil
 	default:
-		return nil, fmt.Errorf("sqlscan.TimeMeddler.PreRead: unknown struct field type: %T", fieldAddr)
+		return nil, fmt.Errorf("meddler.TimeMeddler.PreRead: unknown struct field type: %T", fieldAddr)
 	}
 }
 
@@ -117,7 +117,7 @@ func (elt TimeMeddler) PostRead(fieldAddr, scanTarget interface{}) error {
 
 	case **time.Time:
 		if elt.ZeroIsNull {
-			return fmt.Errorf("sqlscan TimeMeddler cannot be used on a *time.Time field, only time.Time")
+			return fmt.Errorf("meddler TimeMeddler cannot be used on a *time.Time field, only time.Time")
 		}
 		src := scanTarget.(**time.Time)
 		if *src == nil {
@@ -133,7 +133,7 @@ func (elt TimeMeddler) PostRead(fieldAddr, scanTarget interface{}) error {
 		return nil
 
 	default:
-		return fmt.Errorf("sqlscan.TimeMeddler.PostRead: unknown struct field type: %T", fieldAddr)
+		return fmt.Errorf("meddler.TimeMeddler.PostRead: unknown struct field type: %T", fieldAddr)
 	}
 }
 
@@ -152,7 +152,7 @@ func (elt TimeMeddler) PreWrite(field interface{}) (saveValue interface{}, err e
 		return tgt.UTC(), nil
 
 	default:
-		return nil, fmt.Errorf("sqlscan.TimeMeddler.PreWrite: unknown struct field type: %T", field)
+		return nil, fmt.Errorf("meddler.TimeMeddler.PreWrite: unknown struct field type: %T", field)
 	}
 }
 

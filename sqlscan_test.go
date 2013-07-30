@@ -1,4 +1,4 @@
-package sqlscan
+package meddler
 
 import (
 	"database/sql"
@@ -17,16 +17,16 @@ var db *sql.DB
 var when = time.Date(2013, 6, 23, 15, 30, 12, 0, time.UTC)
 
 type Person struct {
-	ID        int64  `sqlscan:"id,pk"`
-	Name      string `sqlscan:"name"`
+	ID        int64  `meddler:"id,pk"`
+	Name      string `meddler:"name"`
 	private   int
 	Email     string
-	Ephemeral int        `sqlscan:"-"`
-	Age       int        `sqlscan:",zeroisnull"`
-	Opened    time.Time  `sqlscan:"opened,utctime"`
-	Closed    time.Time  `sqlscan:"closed,utctimez"`
-	Updated   *time.Time `sqlscan:"updated,localtime"`
-	Height    *int       `sqlscan:"height"`
+	Ephemeral int        `meddler:"-"`
+	Age       int        `meddler:",zeroisnull"`
+	Opened    time.Time  `meddler:"opened,utctime"`
+	Closed    time.Time  `meddler:"closed,utctimez"`
+	Updated   *time.Time `meddler:"updated,localtime"`
+	Height    *int       `meddler:"height"`
 }
 
 const schema1 = `create table person (

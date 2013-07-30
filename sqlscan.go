@@ -1,4 +1,4 @@
-package sqlscan
+package meddler
 
 import (
 	"database/sql"
@@ -10,7 +10,7 @@ import (
 )
 
 // the name of our struct tag
-const tagName = "sqlscan"
+const tagName = "meddler"
 
 // Quote is the quote character for table and column names. "`" works for sqlite and mysql, "\"" for postgresql
 var Quote = "`"
@@ -49,11 +49,11 @@ func getFields(dstType reflect.Type) (*structData, error) {
 
 	// make sure dst is a non-nil pointer to a struct
 	if dstType.Kind() != reflect.Ptr {
-		return nil, fmt.Errorf("sqlscan called with non-pointer destination %v", dstType)
+		return nil, fmt.Errorf("meddler called with non-pointer destination %v", dstType)
 	}
 	structType := dstType.Elem()
 	if structType.Kind() != reflect.Struct {
-		return nil, fmt.Errorf("sqlscan called with pointer to non-struct %v", dstType)
+		return nil, fmt.Errorf("meddler called with pointer to non-struct %v", dstType)
 	}
 
 	// gather the list of fields in the struct
@@ -89,29 +89,29 @@ func getFields(dstType reflect.Type) (*structData, error) {
 		for j := 1; j < len(tag); j++ {
 			if tag[j] == "pk" {
 				if f.Type.Kind() == reflect.Ptr {
-					return nil, fmt.Errorf("sqlscan found field %s which is marked as the primary key but is a pointer", f.Name)
+					return nil, fmt.Errorf("meddler found field %s which is marked as the primary key but is a pointer", f.Name)
 				}
 
 				// make sure it is an int of some kind
 				switch f.Type.Kind() {
 				case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 				default:
-					return nil, fmt.Errorf("sqlscan found field %s which is marked as the primary key, but is not an integer type", f.Name)
+					return nil, fmt.Errorf("meddler found field %s which is marked as the primary key, but is not an integer type", f.Name)
 				}
 
 				if data.pk != "" {
-					return nil, fmt.Errorf("sqlscan found field %s which is marked as the primary key, but a primary key field was already found", f.Name)
+					return nil, fmt.Errorf("meddler found field %s which is marked as the primary key, but a primary key field was already found", f.Name)
 				}
 				data.pk = name
 			} else if m, present := registry[tag[j]]; present {
 				meddler = m
 			} else {
-				return nil, fmt.Errorf("sqlscan found field %s with meddler %s, but that meddler is not registered", f.Name, tag[j])
+				return nil, fmt.Errorf("meddler found field %s with meddler %s, but that meddler is not registered", f.Name, tag[j])
 			}
 		}
 
 		if _, present := data.fields[name]; present {
-			return nil, fmt.Errorf("sqlscan found multiple fields for column %s", name)
+			return nil, fmt.Errorf("meddler found multiple fields for column %s", name)
 		}
 		data.fields[name] = &structField{
 			column:     name,
@@ -187,7 +187,7 @@ func SetPrimaryKey(pk int, src interface{}) error {
 	}
 
 	if data.pk == "" {
-		return fmt.Errorf("sqlscan.SetPrimaryKey: no primary key field found")
+		return fmt.Errorf("meddler.SetPrimaryKey: no primary key field found")
 	}
 
 	reflect.ValueOf(src).Elem().Field(data.fields[data.pk].index).SetInt(int64(pk))
@@ -225,14 +225,14 @@ func SaveSomeValues(columns []string, src interface{}) ([]interface{}, error) {
 			values = append(values, nil)
 
 			if Debug {
-				log.Printf("sqlscan.SaveSomeValues: column [%s] not found in struct", name)
+				log.Printf("meddler.SaveSomeValues: column [%s] not found in struct", name)
 			}
 			continue
 		}
 
 		saveVal, err := field.meddler.PreWrite(structVal.Field(field.index).Interface())
 		if err != nil {
-			return nil, fmt.Errorf("sqlscan.SaveSomeValues: PreWrite error on column [%s]: %v", name, err)
+			return nil, fmt.Errorf("meddler.SaveSomeValues: PreWrite error on column [%s]: %v", name, err)
 		}
 		values = append(values, saveVal)
 	}
@@ -319,7 +319,7 @@ func ScanTargets(columns []string, dst interface{}) ([]interface{}, error) {
 			fieldAddr := structVal.Field(field.index).Addr().Interface()
 			scanTarget, err := field.meddler.PreRead(fieldAddr)
 			if err != nil {
-				return nil, fmt.Errorf("sqlscan.ScanTargets: PreRead error on column %s: %v", name, err)
+				return nil, fmt.Errorf("meddler.ScanTargets: PreRead error on column %s: %v", name, err)
 			}
 			targets = append(targets, scanTarget)
 		} else {
@@ -327,7 +327,7 @@ func ScanTargets(columns []string, dst interface{}) ([]interface{}, error) {
 			targets = append(targets, &sql.RawBytes{})
 
 			if Debug {
-				log.Printf("sqlscan.ScanTargets: column [%s] not found in struct", name)
+				log.Printf("meddler.ScanTargets: column [%s] not found in struct", name)
 			}
 		}
 	}
@@ -340,7 +340,7 @@ func ScanTargets(columns []string, dst interface{}) ([]interface{}, error) {
 // by ScanTargets.
 func ScanSaveTargets(columns []string, targets []interface{}, dst interface{}) error {
 	if len(columns) != len(targets) {
-		return fmt.Errorf("sqlscan.ScanSaveTargets: mismatch in number of columns (%d) and targets (%s)",
+		return fmt.Errorf("meddler.ScanSaveTargets: mismatch in number of columns (%d) and targets (%s)",
 			len(columns), len(targets))
 	}
 
@@ -355,12 +355,12 @@ func ScanSaveTargets(columns []string, targets []interface{}, dst interface{}) e
 			fieldAddr := structVal.Field(field.index).Addr().Interface()
 			err := field.meddler.PostRead(fieldAddr, targets[i])
 			if err != nil {
-				return fmt.Errorf("sqlscan.ScanSaveTargets: PostRead error on column [%s]: %v", name, err)
+				return fmt.Errorf("meddler.ScanSaveTargets: PostRead error on column [%s]: %v", name, err)
 			}
 		} else {
 			// not destination, so throw this away
 			if Debug {
-				log.Printf("sqlscan.ScanSaveTargets: column [%s] not found in struct", name)
+				log.Printf("meddler.ScanSaveTargets: column [%s] not found in struct", name)
 			}
 		}
 	}
