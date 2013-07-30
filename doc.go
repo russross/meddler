@@ -1,18 +1,17 @@
-sqlscan
-=======
+/*
+Package github.com/russross/sqlscan is a small toolkit to automatically scan
+sql results into structs and generate insert and update statements based on
+structs. Package docs are available at:
 
-A small toolkit to automatically scan sql results into structs and
-generate insert and update statements based on structs.
-
-Package docs: http://godoc.org/github.com/russross/sqlscan
+	http://godoc.org/github.com/russross/sqlscan
 
 This is currently designed for Sqlite, MySQL, and PostgreSQL, though
 it has not been tested on PostgreSQL. If you test it, please let me
-know if it works or not and I will update this README.
+know if it works or not and I will update this note.
 
 To use with PostgreSQL, set the following:
 
-    sqlscan.Quote = "\""
+	sqlscan.Quote = "\""
 	sqlscan.Placeholder = "$1"
 	sqlscan.PostgreSQL = true
 
@@ -24,14 +23,12 @@ sqlscan does not create or alter tables. It just provides a little
 glue to make it easier to read and write structs as SQL rows. Start
 by annotating a struct:
 
-``` go
-type Person struct {
-    ID      int       `sqlscan:"id,pk"`
-    Name    string    `sqlscan:"name"`
-    Created time.Time `sqlscan:"created,localtime"`
-    Closed  time.Time `sqlscan:",localtimez"`
-}
-```
+	type Person struct {
+		ID      int       `sqlscan:"id,pk"`
+		Name    string    `sqlscan:"name"`
+		Created time.Time `sqlscan:"created,localtime"`
+		Closed  time.Time `sqlscan:",localtimez"`
+	}
 
 Notes about this example:
 
@@ -172,7 +169,7 @@ meddlers. The full list of built-in meddlers includes:
 
 *   jsongzip: same, but compresses using gzip on save, and
     uncompresses on load
-    
+
 You can implement custom meddlers as well by implementing the
 Meddler interface. See the existing implementations in medder.go for
 examples.
@@ -186,3 +183,6 @@ tedium of reading and writing values, there are some lower-level
 helper functions as well. See the package docs for details, and
 see the implementations of the higher-level functions to see how
 they are used.
+*/
+
+package sqlscan
