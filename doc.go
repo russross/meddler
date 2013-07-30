@@ -15,5 +15,4 @@ The package is housed on github, and the README there has more info:
 	http://github.com/russross/sqlscan
 
 */
-
 package sqlscan
