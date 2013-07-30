@@ -183,6 +183,6 @@ tedium of reading and writing values, there are some lower-level
 helper functions as well. See the package docs for details, and
 see the implementations of the higher-level functions to see how
 they are used.
-*/
 
+*/
 package sqlscan
