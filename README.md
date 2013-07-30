@@ -51,7 +51,7 @@ Notes about this example:
 sqlscan provides a few high-level functions (note: Db is an
 interface that works with a *sql.Db or a *sql.Tx):
 
-*   Load(db Db, table string, pk int64, dst interface{}) error
+*   Load(db Db, table string, pk int, dst interface{}) error
 
     This loads a single record by its primary key. For example:
 

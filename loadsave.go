@@ -15,7 +15,7 @@ type Db interface {
 
 // Load loads a record using a query for the primary key field.
 // Returns sql.ErrNoRows if not found.
-func Load(db Db, table string, pk int64, dst interface{}) error {
+func Load(db Db, table string, pk int, dst interface{}) error {
 	columns := ColumnsQuoted(true, dst)
 
 	// make sure we have a primary key field
@@ -69,7 +69,7 @@ func Insert(db Db, table string, src interface{}) error {
 		if err != nil {
 			return fmt.Errorf("sqlscan.Insert: DB error getting new primary key value: %v", err)
 		}
-		SetPrimaryKey(newPk, src)
+		SetPrimaryKey(int(newPk), src)
 	}
 
 	return nil

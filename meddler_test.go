@@ -5,7 +5,7 @@ import (
 )
 
 type Item struct {
-	ID     int64           `sqlscan:"id,pk"`
+	ID     int             `sqlscan:"id,pk"`
 	Stuff  map[string]bool `sqlscan:"stuff,json"`
 	StuffZ map[string]bool `sqlscan:"stuffz,jsongzip"`
 }

@@ -158,7 +158,7 @@ func ColumnsQuoted(includePk bool, src interface{}) string {
 
 // PrimaryKey returns the name and value of the primary key field. The name
 // is the empty string if there is not primary key field marked.
-func PrimaryKey(src interface{}) (name string, pk int64) {
+func PrimaryKey(src interface{}) (name string, pk int) {
 	fields, err := getFields(reflect.TypeOf(src))
 	if err != nil {
 		panic("sqlscan.PrimaryKey: error scanning fields of struct: " + err.Error())
@@ -169,14 +169,14 @@ func PrimaryKey(src interface{}) (name string, pk int64) {
 	}
 
 	name = fields[0].column
-	pk = reflect.ValueOf(src).Elem().Field(fields[0].index).Int()
+	pk = int(reflect.ValueOf(src).Elem().Field(fields[0].index).Int())
 
 	return name, pk
 }
 
-// SetPrimaryKey sets the primary key field to the given int64 value.
+// SetPrimaryKey sets the primary key field to the given int value.
 // Will panic if there is not primary key, or if it is not of an integer type.
-func SetPrimaryKey(pk int64, src interface{}) {
+func SetPrimaryKey(pk int, src interface{}) {
 	fields, err := getFields(reflect.TypeOf(src))
 	if err != nil {
 		panic("sqlscan.SetPrimaryKey: error scanning fields of struct: " + err.Error())
@@ -186,7 +186,7 @@ func SetPrimaryKey(pk int64, src interface{}) {
 		panic("sqlscan.SetPrimaryKey: no primary key field found")
 	}
 
-	reflect.ValueOf(src).Elem().Field(fields[0].index).SetInt(pk)
+	reflect.ValueOf(src).Elem().Field(fields[0].index).SetInt(int64(pk))
 }
 
 // SaveValues returns a list of PreWrite processed values suitable for
