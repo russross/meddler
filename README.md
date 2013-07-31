@@ -4,6 +4,9 @@ Meddler
 Meddler is a small toolkit to take some of the tedium out of moving data
 back and forth between sql queries and structs.
 
+DANGER: meddler is still a work in progress, and additional
+backward-incompatible changes to the API are likely.
+
 It is not a complete ORM. It is intended to be lightweight way to add some
 of the convenience of an ORM while leaving more control in the hands of the
 programmer.
