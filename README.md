@@ -30,6 +30,38 @@ To use with PostgreSQL, set the following:
     meddler.PostgreSQL = true
 
 
+Why?
+----
+
+These are the features that set meddler apart from similar
+libraries:
+
+*   It uses standard database/sql types, and does not require
+    special fields in your structs. This lets you use meddler
+    selectively, without having to alter other database code already
+    in your project. After creating meddler, I incorporated it into
+    an existing project, and I was able to convert the code one
+    struct and one query at a time.
+*   It leaves query writing to you. It has convenience functions for
+    simple INSERT/UPDATE/SELECT queries by integer primary key, but
+    beyond that it stays out of query writing.
+*   It supports on-the-fly data transformations. If you have a map
+    or a slice in your struct, you can instruct meddler to convert
+    to/from JSON automatically. If you have time fields, you can
+    have meddler automatically write them into the database as UTC,
+    and convert them to the local time zone on reads. These
+    processors are called “meddlers”, because they meddle with the
+    data instead of passing it through directly.
+*   NULL fields in the database can be read as zero values in the
+    struct, and zero values in the struct can be written as NULL
+    values. This is not always the right thing to do, but it is
+    often good enough and is much simpler than most alternatives.
+*   It exposes low-level hooks for more complex situations. If you
+    are writing a query that does not map well to the main helper
+    functions, you can still get some help by using the lower-level
+    functions to build your own helpers.
+
+
 High-level functions
 --------------------
 
