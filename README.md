@@ -46,12 +46,12 @@ libraries:
     simple INSERT/UPDATE/SELECT queries by integer primary key, but
     beyond that it stays out of query writing.
 *   It supports on-the-fly data transformations. If you have a map
-    or a slice in your struct, you can instruct meddler to convert
-    to/from JSON automatically. If you have time fields, you can
-    have meddler automatically write them into the database as UTC,
-    and convert them to the local time zone on reads. These
-    processors are called “meddlers”, because they meddle with the
-    data instead of passing it through directly.
+    or a slice in your struct, you can instruct meddler to
+    encode/decode using JSON or Gob automatically. If you have time
+    fields, you can have meddler automatically write them into the
+    database as UTC, and convert them to the local time zone on
+    reads.  These processors are called “meddlers”, because they
+    meddle with the data instead of passing it through directly.
 *   NULL fields in the database can be read as zero values in the
     struct, and zero values in the struct can be written as NULL
     values. This is not always the right thing to do, but it is
@@ -232,6 +232,12 @@ includes:
     unmarshals on load.
 
 *   jsongzip: same, but compresses using gzip on save, and
+    uncompresses on load
+    
+*   gob: encodes the field value using Gob when saving, and
+    decodes on load.
+
+*   gobgzip: same, but compresses using gzip on save, and
     uncompresses on load
     
 You can implement custom meddlers as well by implementing the

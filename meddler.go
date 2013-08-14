@@ -3,6 +3,7 @@ package meddler
 import (
 	"bytes"
 	"compress/gzip"
+	"encoding/gob"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -49,6 +50,8 @@ func init() {
 	Register("zeroisnull", ZeroIsNullMeddler(false))
 	Register("json", JSONMeddler(false))
 	Register("jsongzip", JSONMeddler(true))
+	Register("gob", GobMeddler(false))
+	Register("gobgzip", GobMeddler(true))
 }
 
 // IdentityMeddler is the default meddler, and it passes the original value through with
@@ -272,6 +275,73 @@ func (zip JSONMeddler) PreWrite(field interface{}) (saveValue interface{}, err e
 	jsonEncoder := json.NewEncoder(buffer)
 	if err := jsonEncoder.Encode(field); err != nil {
 		return nil, fmt.Errorf("JSON encoding error: %v", err)
+	}
+	return buffer.Bytes(), nil
+}
+
+type GobMeddler bool
+
+func (zip GobMeddler) PreRead(fieldAddr interface{}) (scanTarget interface{}, err error) {
+	// give a pointer to a byte buffer to grab the raw data
+	return new([]byte), nil
+}
+
+func (zip GobMeddler) PostRead(fieldAddr, scanTarget interface{}) error {
+	ptr := scanTarget.(*[]byte)
+	if ptr == nil {
+		return fmt.Errorf("GobMeddler.PostRead: nil pointer")
+	}
+	raw := *ptr
+
+	if zip {
+		// un-gzip and decode gob
+		gzipReader, err := gzip.NewReader(bytes.NewReader(raw))
+		if err != nil {
+			return fmt.Errorf("Error creating gzip Reader: %v", err)
+		}
+		defer gzipReader.Close()
+		gobDecoder := gob.NewDecoder(gzipReader)
+		if err := gobDecoder.Decode(fieldAddr); err != nil {
+			return fmt.Errorf("Gob decoder/gzip error: %v", err)
+		}
+		if err := gzipReader.Close(); err != nil {
+			return fmt.Errorf("Closing gzip reader: %v", err)
+		}
+
+		return nil
+	}
+
+	// decode gob
+	gobDecoder := gob.NewDecoder(bytes.NewReader(raw))
+	if err := gobDecoder.Decode(fieldAddr); err != nil {
+		return fmt.Errorf("Gob decode error: %v", err)
+	}
+
+	return nil
+}
+
+func (zip GobMeddler) PreWrite(field interface{}) (saveValue interface{}, err error) {
+	buffer := new(bytes.Buffer)
+
+	if zip {
+		// gob encode and gzip
+		gzipWriter := gzip.NewWriter(buffer)
+		defer gzipWriter.Close()
+		gobEncoder := gob.NewEncoder(gzipWriter)
+		if err := gobEncoder.Encode(field); err != nil {
+			return nil, fmt.Errorf("Gob encoding/gzip error: %v", err)
+		}
+		if err := gzipWriter.Close(); err != nil {
+			return nil, fmt.Errorf("Closing gzip writer: %v", err)
+		}
+
+		return buffer.Bytes(), nil
+	}
+
+	// gob encode
+	gobEncoder := gob.NewEncoder(buffer)
+	if err := gobEncoder.Encode(field); err != nil {
+		return nil, fmt.Errorf("Gob encoding error: %v", err)
 	}
 	return buffer.Bytes(), nil
 }
