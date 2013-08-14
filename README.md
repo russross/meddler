@@ -188,10 +188,10 @@ interface that works with a *sql.DB or a *sql.Tx):
 
 *   ScanAll(rows *sql.Rows, dst interface{}) error
 
-    Expects a pointer to a slice of structs, and appends as
-    many elements as it finds in the row set. Closes the row set
-    when it is finished. Does not return sql.ErrNoRows on an empty
-    set; instead it just does not add anything to the slice.
+    Expects a pointer to a slice of structs/pointers to structs, and
+    appends as many elements as it finds in the row set. Closes the
+    row set when it is finished. Does not return sql.ErrNoRows on an
+    empty set; instead it just does not add anything to the slice.
 
 
 Meddlers
@@ -206,7 +206,9 @@ includes:
 
 *   localtime: for time.Time and *time.Time fields. Converts the
     value to UTC on save, and back to the local time zone on loads.
-    To set your local time zone, use something like:
+    To set your local time zone, make sure the TZ environment
+    variable is set when your program is launched, or use something
+    like:
 
         os.Setenv("TZ", "America/Denver")
 
@@ -252,7 +254,7 @@ License
 
 Meddler is distributed under the BSD 2-Clause License:
 
-> Copyright © 2013 Russ Ross
+> Copyright © 2013 Russ Ross.
 > All rights reserved.
 > 
 > Redistribution and use in source and binary forms, with or without
