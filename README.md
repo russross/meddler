@@ -25,7 +25,7 @@ know if it works or not and I will update this README.
 
 To use with PostgreSQL, set the following:
 
-    meddler.Quote = "\""
+    meddler.Quote = `"`
     meddler.Placeholder = "$1"
     meddler.PostgreSQL = true
 
