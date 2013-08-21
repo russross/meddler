@@ -29,6 +29,12 @@ To use with PostgreSQL, set the following:
     meddler.Placeholder = "$1"
     meddler.PostgreSQL = true
 
+Install
+-------
+
+The usual `go get` command will put it in your `$GOPATH`:
+
+    go get github.com/russross/meddler
 
 Why?
 ----
