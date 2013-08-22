@@ -29,6 +29,15 @@ type Person struct {
 	Height    *int       `meddler:"height"`
 }
 
+type HalfPerson struct {
+	ID        int64 `meddler:"id,pk"`
+	private   int
+	Ephemeral int        `meddler:"-"`
+	Age       int        `meddler:",zeroisnull"`
+	Closed    time.Time  `meddler:"closed,utctimez"`
+	Updated   *time.Time `meddler:"updated,localtime"`
+}
+
 const schema1 = `create table person (
 	id integer primary key,
 	name text not null,
@@ -422,5 +431,19 @@ func TestScanAll(t *testing.T) {
 	height := 65
 	personEqual(t, lst[0], &Person{1, "Alice", 0, "alice@alice.com", 0, 32, when, when, &when, &height})
 	personEqual(t, lst[1], &Person{2, "Bob", 0, "bob@bob.com", 0, 0, when, time.Time{}, nil, nil})
+	db.Exec("delete from person")
+}
+
+func TestThrowAway(t *testing.T) {
+	once.Do(setup)
+	insertAliceBob(t)
+
+	Debug = false
+	hp := new(HalfPerson)
+	err := QueryRow(db, hp, "select * from person where id = 1")
+	if err != nil {
+		t.Errorf("QueryRow error: %v", err)
+	}
+	Debug = true
 	db.Exec("delete from person")
 }

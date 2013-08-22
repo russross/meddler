@@ -324,7 +324,8 @@ func Targets(dst interface{}, columns []string) ([]interface{}, error) {
 			targets = append(targets, scanTarget)
 		} else {
 			// no destination, so throw this away
-			targets = append(targets, &sql.RawBytes{})
+			//targets = append(targets, &sql.RawBytes{})
+			targets = append(targets, new(interface{}))
 
 			if Debug {
 				log.Printf("meddler.Targets: column [%s] not found in struct", name)
