@@ -5,10 +5,6 @@ import (
 	"time"
 )
 
-func TestPlaceholder(t *testing.T) {
-
-}
-
 func TestLoadFromCache(t *testing.T) {
 	once.Do(setup)
 	insertAliceBob(t)
@@ -112,100 +108,4 @@ func insertAliceBobBench(b *testing.B) {
 	if bob.ID != 2 {
 		b.Errorf("Bob ID is %d, expecting 2", bob.ID)
 	}
-}
-
-// Run all benchmarks with the following command:
-// go test -test.bench .
-//
-// As of 2013/Aug, with go v1.1.2, using a statement cache results in
-// ~85% performance improvement w/ loads and ~60% w/ saves
-
-func BenchmarkLoad(b *testing.B) {
-	b.StopTimer()
-	once.Do(setup)
-	insertAliceBobBench(b)
-	elt := new(Person)
-
-	b.StartTimer()
-	for i := 0; i < b.N; i++ {
-		if err := Load(db, "person", elt, 2); err != nil {
-			b.Fatalf("Load error on Bob: %v", err)
-			return
-		}
-	}
-	b.StopTimer()
-	db.Exec("delete from person")
-}
-func BenchmarkLoadStmtCache(b *testing.B) {
-	b.StopTimer()
-	once.Do(setup)
-	insertAliceBobBench(b)
-	cache := NewPermStmtCache(db)
-	elt := new(Person)
-
-	b.StartTimer()
-	for i := 0; i < b.N; i++ {
-		if err := Load(cache, "person", elt, 2); err != nil {
-			b.Fatalf("Load error on Bob: %v", err)
-			return
-		}
-	}
-	b.StopTimer()
-	db.Exec("delete from person")
-}
-
-func BenchmarkSave(b *testing.B) {
-	b.StopTimer()
-	once.Do(setup)
-	insertAliceBobBench(b)
-
-	h := 73
-	chris := &Person{
-		ID:        0,
-		Name:      "Chris",
-		Email:     "chris@chris.com",
-		Ephemeral: 19,
-		Age:       23,
-		Opened:    when.Local(),
-		Closed:    when,
-		Updated:   nil,
-		Height:    &h,
-	}
-
-	b.StartTimer()
-	for i := 0; i < b.N; i++ {
-		if err := Save(db, "person", chris); err != nil {
-			b.Fatalf("DB error on Save: %v", err)
-		}
-	}
-	b.StopTimer()
-	db.Exec("delete from person")
-}
-func BenchmarkSaveStmtCache(b *testing.B) {
-	b.StopTimer()
-	once.Do(setup)
-	insertAliceBobBench(b)
-	cache := NewPermStmtCache(db)
-
-	h := 73
-	chris := &Person{
-		ID:        0,
-		Name:      "Chris",
-		Email:     "chris@chris.com",
-		Ephemeral: 19,
-		Age:       23,
-		Opened:    when.Local(),
-		Closed:    when,
-		Updated:   nil,
-		Height:    &h,
-	}
-
-	b.StartTimer()
-	for i := 0; i < b.N; i++ {
-		if err := Save(cache, "person", chris); err != nil {
-			b.Fatalf("DB error on Save: %v", err)
-		}
-	}
-	b.StopTimer()
-	db.Exec("delete from person")
 }
