@@ -15,6 +15,10 @@ const tagName = "meddler"
 // Quote is the quote character for table and column names. "`" works for sqlite and mysql, "\"" for postgresql
 var Quote = "`"
 
+func quoted(s string) string {
+	return Quote + s + Quote
+}
+
 // Placeholder is the SQL value placeholder. "?" works for sqlite and mysql, "$1" for postgresql
 var Placeholder = "?"
 
@@ -153,12 +157,12 @@ func ColumnsQuoted(src interface{}, includePk bool) (string, error) {
 		return "", err
 	}
 
-	var quoted []string
+	var parts []string
 	for _, elt := range unquoted {
-		quoted = append(quoted, Quote+elt+Quote)
+		parts = append(parts, quoted(elt))
 	}
 
-	return strings.Join(quoted, ","), nil
+	return strings.Join(parts, ","), nil
 }
 
 // PrimaryKey returns the name and value of the primary key field. The name

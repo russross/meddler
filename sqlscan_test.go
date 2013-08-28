@@ -234,7 +234,7 @@ func TestColumnsQuoted(t *testing.T) {
 	lst := []string{"id", "name", "Email", "Age", "opened", "closed", "updated", "height"}
 	sort.Strings(lst)
 	for i, orig := range lst {
-		lst[i] = Quote + orig + Quote
+		lst[i] = quoted(orig)
 	}
 	expected := strings.Join(lst, ",")
 

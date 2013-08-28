@@ -32,7 +32,7 @@ func Load(db DB, table string, dst interface{}, pk int) error {
 	}
 
 	// run the query
-	q := fmt.Sprintf("SELECT %s FROM %s WHERE %s = %s", columns, Quote+table+Quote, pkName, Placeholder)
+	q := fmt.Sprintf("SELECT %s FROM %s WHERE %s = %s", columns, quoted(table), quoted(pkName), Placeholder)
 
 	rows, err := db.Query(q, pk)
 	if err != nil {
@@ -71,10 +71,9 @@ func Insert(db DB, table string, src interface{}) error {
 	}
 
 	// run the query
-	q := fmt.Sprintf("INSERT INTO %s%s%s (%s) VALUES (%s)", Quote, table, Quote,
-		namesPart, valuesPart)
+	q := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)", quoted(table), namesPart, valuesPart)
 	if PostgreSQL && pkName != "" {
-		q += " RETURNING " + Quote + pkName + Quote
+		q += " RETURNING " + quoted(pkName)
 		var newPk int
 		err := db.QueryRow(q, values...).Scan(&newPk)
 		if err != nil {
@@ -129,7 +128,7 @@ func Update(db DB, table string, src interface{}) error {
 	// form the column=placeholder pairs
 	var pairs []string
 	for i := 0; i < len(names) && i < len(placeholders); i++ {
-		pair := fmt.Sprintf("%s%s%s=%s", Quote, names[i], Quote, placeholders[i])
+		pair := fmt.Sprintf("%s=%s", quoted(names[i]), placeholders[i])
 		pairs = append(pairs, pair)
 	}
 
@@ -146,9 +145,9 @@ func Update(db DB, table string, src interface{}) error {
 	ph := strings.Replace(Placeholder, "1", strconv.FormatInt(int64(len(placeholders)+1), 10), 1)
 
 	// run the query
-	q := fmt.Sprintf("UPDATE %s%s%s SET %s WHERE %s%s%s=%s", Quote, table, Quote,
+	q := fmt.Sprintf("UPDATE %s SET %s WHERE %s=%s", quoted(table),
 		strings.Join(pairs, ","),
-		Quote, pkName, Quote, ph)
+		quoted(pkName), ph)
 	values = append(values, pkValue)
 
 	if _, err := db.Exec(q, values...); err != nil {
