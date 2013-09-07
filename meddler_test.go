@@ -5,13 +5,13 @@ import (
 )
 
 type ItemJson struct {
-	ID     int             `meddler:"id,pk"`
+	ID     int64           `meddler:"id,pk"`
 	Stuff  map[string]bool `meddler:"stuff,json"`
 	StuffZ map[string]bool `meddler:"stuffz,jsongzip"`
 }
 
 type ItemGob struct {
-	ID     int             `meddler:"id,pk"`
+	ID     int64           `meddler:"id,pk"`
 	Stuff  map[string]bool `meddler:"stuff,gob"`
 	StuffZ map[string]bool `meddler:"stuffz,gobgzip"`
 }

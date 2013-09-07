@@ -205,7 +205,7 @@ func ColumnsQuoted(src interface{}, includePk bool) (string, error) {
 
 // PrimaryKey returns the name and value of the primary key field. The name
 // is the empty string if there is not primary key field marked.
-func (d *Database) PrimaryKey(src interface{}) (name string, pk int, err error) {
+func (d *Database) PrimaryKey(src interface{}) (name string, pk int64, err error) {
 	data, err := getFields(reflect.TypeOf(src))
 	if err != nil {
 		return "", 0, err
@@ -216,18 +216,18 @@ func (d *Database) PrimaryKey(src interface{}) (name string, pk int, err error) 
 	}
 
 	name = data.pk
-	pk = int(reflect.ValueOf(src).Elem().Field(data.fields[name].index).Int())
+	pk = reflect.ValueOf(src).Elem().Field(data.fields[name].index).Int()
 
 	return name, pk, nil
 }
 
 // PrimaryKey using the Default Database type
-func PrimaryKey(src interface{}) (name string, pk int, err error) {
+func PrimaryKey(src interface{}) (name string, pk int64, err error) {
 	return Default.PrimaryKey(src)
 }
 
 // SetPrimaryKey sets the primary key field to the given int value.
-func (d *Database) SetPrimaryKey(src interface{}, pk int) error {
+func (d *Database) SetPrimaryKey(src interface{}, pk int64) error {
 	data, err := getFields(reflect.TypeOf(src))
 	if err != nil {
 		return err
@@ -237,13 +237,13 @@ func (d *Database) SetPrimaryKey(src interface{}, pk int) error {
 		return fmt.Errorf("meddler.SetPrimaryKey: no primary key field found")
 	}
 
-	reflect.ValueOf(src).Elem().Field(data.fields[data.pk].index).SetInt(int64(pk))
+	reflect.ValueOf(src).Elem().Field(data.fields[data.pk].index).SetInt(pk)
 
 	return nil
 }
 
 // SetPrimaryKey using the Default Database type
-func SetPrimaryKey(src interface{}, pk int) error {
+func SetPrimaryKey(src interface{}, pk int64) error {
 	return Default.SetPrimaryKey(src, pk)
 }
 

@@ -15,7 +15,7 @@ type DB interface {
 
 // Load loads a record using a query for the primary key field.
 // Returns sql.ErrNoRows if not found.
-func (d *Database) Load(db DB, table string, dst interface{}, pk int) error {
+func (d *Database) Load(db DB, table string, dst interface{}, pk int64) error {
 	columns, err := d.ColumnsQuoted(dst, true)
 	if err != nil {
 		return err
@@ -43,7 +43,7 @@ func (d *Database) Load(db DB, table string, dst interface{}, pk int) error {
 }
 
 // Load using the Default Database type
-func Load(db DB, table string, dst interface{}, pk int) error {
+func Load(db DB, table string, dst interface{}, pk int64) error {
 	return Default.Load(db, table, dst, pk)
 }
 
@@ -78,7 +78,7 @@ func (d *Database) Insert(db DB, table string, src interface{}) error {
 	q := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)", d.quoted(table), namesPart, valuesPart)
 	if d.UseReturningToGetID && pkName != "" {
 		q += " RETURNING " + d.quoted(pkName)
-		var newPk int
+		var newPk int64
 		err := db.QueryRow(q, values...).Scan(&newPk)
 		if err != nil {
 			return fmt.Errorf("meddler.Insert: DB error in QueryRow: %v", err)
@@ -97,7 +97,7 @@ func (d *Database) Insert(db DB, table string, src interface{}) error {
 		if err != nil {
 			return fmt.Errorf("meddler.Insert: DB error getting new primary key value: %v", err)
 		}
-		if err = d.SetPrimaryKey(src, int(newPk)); err != nil {
+		if err = d.SetPrimaryKey(src, newPk); err != nil {
 			return fmt.Errorf("meddler.Insert: Error saving updated pk: %v", err)
 		}
 	} else {

@@ -30,6 +30,10 @@ to switch between them. This is most likely to affect the way you
 initialize the library to work with your database (see the install
 section below).
 
+Another recent update is the change to int64 for primary keys. This
+matches the convention used in database/sql, and is more portable,
+but it may require some minor changes to existing code.
+
 
 Install
 -------
