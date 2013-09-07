@@ -4,9 +4,6 @@ Meddler
 Meddler is a small toolkit to take some of the tedium out of moving data
 back and forth between sql queries and structs.
 
-DANGER: meddler is still a work in progress, and additional
-backward-incompatible changes to the API are likely.
-
 It is not a complete ORM. It is intended to be lightweight way to add some
 of the convenience of an ORM while leaving more control in the hands of the
 programmer.
@@ -19,15 +16,20 @@ The package is housed on github, and the README there has more info:
 
 * http://github.com/russross/meddler
 
-This is currently designed for Sqlite, MySQL, and PostgreSQL, though
-it has not been tested on PostgreSQL. If you test it, please let me
-know if it works or not and I will update this README.
+This is currently designed for SQLite, MySQL, and PostgreSQL, but it
+can be configured for use with other databases. If you use it
+successfully with a different database, please contact me and I will
+add it to the list of pre-configured databases.
 
-To use with PostgreSQL, set the following:
+### DANGER
 
-    meddler.Quote = `"`
-    meddler.Placeholder = "$1"
-    meddler.PostgreSQL = true
+Meddler is still a work in progress, and additional
+backward-incompatible changes to the API are likely. The most recent
+change added support for multiple database types and made it easier
+to switch between them. This is most likely to affect the way you
+initialize the library to work with your database (see the install
+section below).
+
 
 Install
 -------
@@ -35,6 +37,16 @@ Install
 The usual `go get` command will put it in your `$GOPATH`:
 
     go get github.com/russross/meddler
+
+If you are only using one type of database, you should set Default
+to match your database type, e.g.:
+
+    meddler.Default = meddler.PostgreSQL
+
+The default database is MySQL, so you should change it for anything
+else. To use multiple databases within a single project, or to use a
+database other than MySQL, PostgreSQL, or SQLite, see below.
+
 
 Why?
 ----
@@ -199,6 +211,10 @@ interface that works with a *sql.DB or a *sql.Tx):
     row set when it is finished. Does not return sql.ErrNoRows on an
     empty set; instead it just does not add anything to the slice.
 
+Note: all of these functions can also be used as methods on Database
+objects. When used as package functions, they use the Default
+Database object, which is MySQL unless you change it.
+
 
 Meddlers
 --------
@@ -251,6 +267,36 @@ Meddler interface. See the existing implementations in medder.go for
 examples.
 
 
+Working with different database types
+-------------------------------------
+
+Meddler can work with multiple database types simultaneously.
+Database-specific parameters are stored in a Database struct, and
+structs are pre-defined for MySQL, PostgreSQL, and SQLite.
+
+Instead of relying on the package-level functions, use the method
+form on the appropriate database type, e.g.:
+
+    err = meddler.PostgreSQL.Load(...)
+
+instead of
+
+    err = meddler.Load(...)
+
+Or to save typing, define your own abbreviated name for each
+database:
+
+    ms := meddler.MySQL
+    pg := meddler.PostgreSQL
+    err = ms.Load(...)
+    err = pg.QueryAll(...)
+
+If you need a different database, create your own Database instance
+with the appropriate parameters set. If everything works okay,
+please contact me with the parameters you used so I can add the new
+database to the pre-defined list.
+
+
 Lower-level functions
 ---------------------
 
@@ -264,7 +310,10 @@ they are used.
 License
 -------
 
-Meddler is distributed under the BSD 2-Clause License:
+Meddler is distributed under the BSD 2-Clause License. If this
+license prevents you from using Meddler in your project, please
+contact me and I will consider adding an additional license that is
+better suited to your needs.
 
 > Copyright © 2013 Russ Ross.
 > All rights reserved.

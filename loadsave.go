@@ -3,7 +3,6 @@ package meddler
 import (
 	"database/sql"
 	"fmt"
-	"strconv"
 	"strings"
 )
 
@@ -16,14 +15,14 @@ type DB interface {
 
 // Load loads a record using a query for the primary key field.
 // Returns sql.ErrNoRows if not found.
-func Load(db DB, table string, dst interface{}, pk int) error {
-	columns, err := ColumnsQuoted(dst, true)
+func (d *Database) Load(db DB, table string, dst interface{}, pk int) error {
+	columns, err := d.ColumnsQuoted(dst, true)
 	if err != nil {
 		return err
 	}
 
 	// make sure we have a primary key field
-	pkName, _, err := PrimaryKey(dst)
+	pkName, _, err := d.PrimaryKey(dst)
 	if err != nil {
 		return err
 	}
@@ -32,7 +31,7 @@ func Load(db DB, table string, dst interface{}, pk int) error {
 	}
 
 	// run the query
-	q := fmt.Sprintf("SELECT %s FROM %s WHERE %s = %s", columns, quoted(table), quoted(pkName), Placeholder)
+	q := fmt.Sprintf("SELECT %s FROM %s WHERE %s = %s", columns, d.quoted(table), d.quoted(pkName), d.Placeholder)
 
 	rows, err := db.Query(q, pk)
 	if err != nil {
@@ -40,15 +39,20 @@ func Load(db DB, table string, dst interface{}, pk int) error {
 	}
 
 	// scan the row
-	return ScanRow(rows, dst)
+	return d.ScanRow(rows, dst)
+}
+
+// Load using the Default Database type
+func Load(db DB, table string, dst interface{}, pk int) error {
+	return Default.Load(db, table, dst, pk)
 }
 
 // Insert performs an INSERT query for the given record.
 // If the record has a primary key flagged, it must be zero, and it
 // will be set to the newly-allocated primary key value from the database
 // as returned by LastInsertId.
-func Insert(db DB, table string, src interface{}) error {
-	pkName, pkValue, err := PrimaryKey(src)
+func (d *Database) Insert(db DB, table string, src interface{}) error {
+	pkName, pkValue, err := d.PrimaryKey(src)
 	if err != nil {
 		return err
 	}
@@ -57,29 +61,29 @@ func Insert(db DB, table string, src interface{}) error {
 	}
 
 	// gather the query parts
-	namesPart, err := ColumnsQuoted(src, false)
+	namesPart, err := d.ColumnsQuoted(src, false)
 	if err != nil {
 		return err
 	}
-	valuesPart, err := PlaceholdersString(src, false)
+	valuesPart, err := d.PlaceholdersString(src, false)
 	if err != nil {
 		return err
 	}
-	values, err := Values(src, false)
+	values, err := d.Values(src, false)
 	if err != nil {
 		return err
 	}
 
 	// run the query
-	q := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)", quoted(table), namesPart, valuesPart)
-	if PostgreSQL && pkName != "" {
-		q += " RETURNING " + quoted(pkName)
+	q := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)", d.quoted(table), namesPart, valuesPart)
+	if d.UseReturningToGetID && pkName != "" {
+		q += " RETURNING " + d.quoted(pkName)
 		var newPk int
 		err := db.QueryRow(q, values...).Scan(&newPk)
 		if err != nil {
 			return fmt.Errorf("meddler.Insert: DB error in QueryRow: %v", err)
 		}
-		if err = SetPrimaryKey(src, newPk); err != nil {
+		if err = d.SetPrimaryKey(src, newPk); err != nil {
 			return fmt.Errorf("meddler.Insert: Error saving updated pk: %v", err)
 		}
 	} else if pkName != "" {
@@ -93,7 +97,7 @@ func Insert(db DB, table string, src interface{}) error {
 		if err != nil {
 			return fmt.Errorf("meddler.Insert: DB error getting new primary key value: %v", err)
 		}
-		if err = SetPrimaryKey(src, int(newPk)); err != nil {
+		if err = d.SetPrimaryKey(src, int(newPk)); err != nil {
 			return fmt.Errorf("meddler.Insert: Error saving updated pk: %v", err)
 		}
 	} else {
@@ -107,20 +111,25 @@ func Insert(db DB, table string, src interface{}) error {
 	return nil
 }
 
+// Insert using the Default Database type
+func Insert(db DB, table string, src interface{}) error {
+	return Default.Insert(db, table, src)
+}
+
 // Update performs and UPDATE query for the given record.
 // The record must have an integer primary key field that is non-zero,
 // and it will be used to select the database row that gets updated.
-func Update(db DB, table string, src interface{}) error {
+func (d *Database) Update(db DB, table string, src interface{}) error {
 	// gather the query parts
-	names, err := Columns(src, false)
+	names, err := d.Columns(src, false)
 	if err != nil {
 		return err
 	}
-	placeholders, err := Placeholders(src, false)
+	placeholders, err := d.Placeholders(src, false)
 	if err != nil {
 		return err
 	}
-	values, err := Values(src, false)
+	values, err := d.Values(src, false)
 	if err != nil {
 		return err
 	}
@@ -128,11 +137,11 @@ func Update(db DB, table string, src interface{}) error {
 	// form the column=placeholder pairs
 	var pairs []string
 	for i := 0; i < len(names) && i < len(placeholders); i++ {
-		pair := fmt.Sprintf("%s=%s", quoted(names[i]), placeholders[i])
+		pair := fmt.Sprintf("%s=%s", d.quoted(names[i]), placeholders[i])
 		pairs = append(pairs, pair)
 	}
 
-	pkName, pkValue, err := PrimaryKey(src)
+	pkName, pkValue, err := d.PrimaryKey(src)
 	if err != nil {
 		return err
 	}
@@ -142,12 +151,12 @@ func Update(db DB, table string, src interface{}) error {
 	if pkValue < 1 {
 		return fmt.Errorf("meddler.Update: primary key must be an integer > 0")
 	}
-	ph := strings.Replace(Placeholder, "1", strconv.FormatInt(int64(len(placeholders)+1), 10), 1)
+	ph := d.placeholder(len(placeholders) + 1)
 
 	// run the query
-	q := fmt.Sprintf("UPDATE %s SET %s WHERE %s=%s", quoted(table),
+	q := fmt.Sprintf("UPDATE %s SET %s WHERE %s=%s", d.quoted(table),
 		strings.Join(pairs, ","),
-		quoted(pkName), ph)
+		d.quoted(pkName), ph)
 	values = append(values, pkValue)
 
 	if _, err := db.Exec(q, values...); err != nil {
@@ -157,24 +166,34 @@ func Update(db DB, table string, src interface{}) error {
 	return nil
 }
 
+// Update using the Default Database type
+func Update(db DB, table string, src interface{}) error {
+	return Default.Update(db, table, src)
+}
+
 // Save performs an INSERT or an UPDATE, depending on whether or not
 // a primary keys exists and is non-zero.
-func Save(db DB, table string, src interface{}) error {
-	pkName, pkValue, err := PrimaryKey(src)
+func (d *Database) Save(db DB, table string, src interface{}) error {
+	pkName, pkValue, err := d.PrimaryKey(src)
 	if err != nil {
 		return err
 	}
 	if pkName != "" && pkValue != 0 {
-		return Update(db, table, src)
+		return d.Update(db, table, src)
 	} else {
-		return Insert(db, table, src)
+		return d.Insert(db, table, src)
 	}
+}
+
+// Save using the Default Database type
+func Save(db DB, table string, src interface{}) error {
+	return Default.Save(db, table, src)
 }
 
 // QueryOne performs the given query with the given arguments, scanning a
 // single row of results into dst. Returns sql.ErrNoRows if there was no
 // result row.
-func QueryRow(db DB, dst interface{}, query string, args ...interface{}) error {
+func (d *Database) QueryRow(db DB, dst interface{}, query string, args ...interface{}) error {
 	// perform the query
 	rows, err := db.Query(query, args...)
 	if err != nil {
@@ -182,12 +201,17 @@ func QueryRow(db DB, dst interface{}, query string, args ...interface{}) error {
 	}
 
 	// gather the result
-	return ScanRow(rows, dst)
+	return d.ScanRow(rows, dst)
+}
+
+// QueryRow using the Default Database type
+func QueryRow(db DB, dst interface{}, query string, args ...interface{}) error {
+	return Default.QueryRow(db, dst, query, args...)
 }
 
 // QueryAll performs the given query with the given arguments, scanning
 // all results rows into dst.
-func QueryAll(db DB, dst interface{}, query string, args ...interface{}) error {
+func (d *Database) QueryAll(db DB, dst interface{}, query string, args ...interface{}) error {
 	// perform the query
 	rows, err := db.Query(query, args...)
 	if err != nil {
@@ -195,5 +219,10 @@ func QueryAll(db DB, dst interface{}, query string, args ...interface{}) error {
 	}
 
 	// gather the results
-	return ScanAll(rows, dst)
+	return d.ScanAll(rows, dst)
+}
+
+// QueryAll using the Default Database type
+func QueryAll(db DB, dst interface{}, query string, args ...interface{}) error {
+	return Default.QueryAll(db, dst, query, args...)
 }

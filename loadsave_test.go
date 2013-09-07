@@ -72,7 +72,7 @@ func TestSave(t *testing.T) {
 	}
 
 	p := new(Person)
-	if err = ScanRow(rows, p); err != nil {
+	if err = Default.ScanRow(rows, p); err != nil {
 		t.Errorf("ScanRow error on Chris: %v", err)
 		return
 	}

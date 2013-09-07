@@ -234,7 +234,7 @@ func TestColumnsQuoted(t *testing.T) {
 	lst := []string{"id", "name", "Email", "Age", "opened", "closed", "updated", "height"}
 	sort.Strings(lst)
 	for i, orig := range lst {
-		lst[i] = quoted(orig)
+		lst[i] = Default.quoted(orig)
 	}
 	expected := strings.Join(lst, ",")
 
@@ -319,8 +319,7 @@ func TestValues(t *testing.T) {
 }
 
 func TestPlaceholders(t *testing.T) {
-	Placeholder = "?"
-	lst, err := Placeholders(alice, true)
+	lst, err := MySQL.Placeholders(alice, true)
 	if err != nil {
 		t.Errorf("Error in Placeholders: %v", err)
 	}
@@ -328,13 +327,12 @@ func TestPlaceholders(t *testing.T) {
 		t.Errorf("expected 8 items, found %d", len(lst))
 	}
 	for _, elt := range lst {
-		if elt != Placeholder {
-			t.Errorf("expected %s, found %s", Placeholder, elt)
+		if elt != MySQL.Placeholder {
+			t.Errorf("expected %s, found %s", MySQL.Placeholder, elt)
 		}
 	}
 
-	Placeholder = "$1"
-	lst, err = Placeholders(alice, false)
+	lst, err = PostgreSQL.Placeholders(alice, false)
 	if err != nil {
 		t.Errorf("Error in Placeholders: %v", err)
 	}
@@ -347,13 +345,10 @@ func TestPlaceholders(t *testing.T) {
 			t.Errorf("expected %s, found %s", expected, elt)
 		}
 	}
-
-	Placeholder = "?"
 }
 
 func TestPlaceholdersString(t *testing.T) {
-	Placeholder = "?"
-	s, err := PlaceholdersString(alice, false)
+	s, err := SQLite.PlaceholdersString(alice, false)
 	if err != nil {
 		t.Errorf("Error in PlaceholdersString: %v", err)
 	}
@@ -362,8 +357,7 @@ func TestPlaceholdersString(t *testing.T) {
 		t.Errorf("expected %s, found %s", expected, s)
 	}
 
-	Placeholder = "$1"
-	s, err = PlaceholdersString(alice, true)
+	s, err = PostgreSQL.PlaceholdersString(alice, true)
 	if err != nil {
 		t.Errorf("Error in PlaceholdersString: %v", err)
 	}
@@ -371,8 +365,6 @@ func TestPlaceholdersString(t *testing.T) {
 	if s != expected {
 		t.Errorf("expected %s, found %s", expected, s)
 	}
-
-	Placeholder = "?"
 }
 
 func TestScanRow(t *testing.T) {
