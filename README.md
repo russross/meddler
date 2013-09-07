@@ -16,7 +16,7 @@ The package is housed on github, and the README there has more info:
 
 * http://github.com/russross/meddler
 
-This is currently designed for SQLite, MySQL, and PostgreSQL, but it
+This is currently configured for SQLite, MySQL, and PostgreSQL, but it
 can be configured for use with other databases. If you use it
 successfully with a different database, please contact me and I will
 add it to the list of pre-configured databases.
