@@ -188,7 +188,7 @@ interface that works with a *sql.DB or a *sql.Tx):
 *   QueryAll(db DB, dst interface{}, query string, args ...interface) error
 
     Perform the given query, and scan the results into dst, which
-    must be a pointer to a slice of structs/pointers to structs.
+    must be a pointer to a slice of struct pointers.
 
     For example:
 
