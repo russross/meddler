@@ -130,7 +130,7 @@ Notes about this example:
 Meddler provides a few high-level functions (note: DB is an
 interface that works with a *sql.DB or a *sql.Tx):
 
-*   Load(db DB, table string, dst interface{}, pk int) error
+*   Load(db DB, table string, dst interface{}, pk int64) error
 
     This loads a single record by its primary key. For example:
 
