@@ -127,6 +127,7 @@ func getFields(dstType reflect.Type) (*structData, error) {
 				// make sure it is an int of some kind
 				switch f.Type.Kind() {
 				case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+				case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 				default:
 					return nil, fmt.Errorf("meddler found field %s which is marked as the primary key, but is not an integer type", f.Name)
 				}
