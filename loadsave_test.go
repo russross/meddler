@@ -21,6 +21,21 @@ func TestLoad(t *testing.T) {
 	db.Exec("delete from person")
 }
 
+func TestLoadUint(t *testing.T) {
+	once.Do(setup)
+	insertAliceBob(t)
+
+	elt := new(UintPerson)
+	elt.Age = 50
+	elt.Closed = time.Now()
+	if err := Load(db, "person", elt, 2); err != nil {
+		t.Errorf("Load error on Bob: %v", err)
+		return
+	}
+	bob.ID = 2
+	db.Exec("delete from person")
+}
+
 func TestSave(t *testing.T) {
 	once.Do(setup)
 	insertAliceBob(t)

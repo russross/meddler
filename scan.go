@@ -217,7 +217,15 @@ func (d *Database) PrimaryKey(src interface{}) (name string, pk int64, err error
 	}
 
 	name = data.pk
-	pk = reflect.ValueOf(src).Elem().Field(data.fields[name].index).Int()
+	field := reflect.ValueOf(src).Elem().Field(data.fields[name].index)
+	switch field.Type().Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		pk = field.Int()
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		pk = int64(field.Uint())
+	default:
+		return "", 0, fmt.Errorf("meddler found field %s which is marked as the primary key, but is not an integer type", name)
+	}
 
 	return name, pk, nil
 }
@@ -238,7 +246,15 @@ func (d *Database) SetPrimaryKey(src interface{}, pk int64) error {
 		return fmt.Errorf("meddler.SetPrimaryKey: no primary key field found")
 	}
 
-	reflect.ValueOf(src).Elem().Field(data.fields[data.pk].index).SetInt(pk)
+	field := reflect.ValueOf(src).Elem().Field(data.fields[data.pk].index)
+	switch field.Type().Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		field.SetInt(pk)
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		field.SetUint(uint64(pk))
+	default:
+		return fmt.Errorf("meddler found field %s which is marked as the primary key, but is not an integer type", data.pk)
+	}
 
 	return nil
 }

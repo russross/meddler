@@ -38,6 +38,19 @@ type HalfPerson struct {
 	Updated   *time.Time `meddler:"updated,localtime"`
 }
 
+type UintPerson struct {
+	ID        uint64 `meddler:"id,pk"`
+	Name      string `meddler:"name"`
+	private   int
+	Email     string
+	Ephemeral int        `meddler:"-"`
+	Age       int        `meddler:",zeroisnull"`
+	Opened    time.Time  `meddler:"opened,utctime"`
+	Closed    time.Time  `meddler:"closed,utctimez"`
+	Updated   *time.Time `meddler:"updated,localtime"`
+	Height    *int       `meddler:"height"`
+}
+
 const schema1 = `create table person (
 	id integer primary key,
 	name text not null,
@@ -264,6 +277,19 @@ func TestPrimaryKey(t *testing.T) {
 	if val != 56 {
 		t.Errorf("Expected pk value to be 56, found %d", val)
 	}
+
+	p2 := new(UintPerson)
+	p2.ID = 56
+	name, val, err = PrimaryKey(p2)
+	if err != nil {
+		t.Errorf("Error getting PrimaryKey: %v", err)
+	}
+	if name != "id" {
+		t.Errorf("Expected pk name to be id, found %s", name)
+	}
+	if val != 56 {
+		t.Errorf("Expected pk value to be 56, found %d", val)
+	}
 }
 
 func TestSetPrimaryKey(t *testing.T) {
@@ -274,6 +300,15 @@ func TestSetPrimaryKey(t *testing.T) {
 	}
 	if p.ID != 14 {
 		t.Errorf("Expected id to be 14, found %d", p.ID)
+	}
+
+	p2 := new(Person)
+	err = SetPrimaryKey(p2, 14)
+	if err != nil {
+		t.Errorf("Error in SetPrimaryKey: %v", err)
+	}
+	if p2.ID != 14 {
+		t.Errorf("Expected id to be 14, found %d", p2.ID)
 	}
 }
 
