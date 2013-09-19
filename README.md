@@ -51,6 +51,10 @@ The default database is MySQL, so you should change it for anything
 else. To use multiple databases within a single project, or to use a
 database other than MySQL, PostgreSQL, or SQLite, see below.
 
+Note: If you are using MySQL with the `github.com/go-sql-driver/mysql`
+driver, you must set "parseTime=true" in the sql.Open call or the
+time conversion meddlers will not work.
+
 
 Why?
 ----
