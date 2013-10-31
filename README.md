@@ -270,7 +270,7 @@ includes:
 *   gobgzip: same, but compresses using gzip on save, and
     uncompresses on load
 
-*   gobgencrypt: same, but encrypts using a block cipher on save, and
+*   gobencrypt: same, but encrypts using a block cipher on save, and
     decrypts on load
     
 You can implement custom meddlers as well by implementing the
