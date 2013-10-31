@@ -65,7 +65,8 @@ const schema1 = `create table person (
 const schema2 = `create table item (
 	id integer primary key,
 	stuff text not null,
-	stuffz blob not null
+	stuffz blob not null,
+	stuffp blob
 )`
 
 var aliceHeight int = 65

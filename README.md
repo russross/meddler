@@ -269,6 +269,9 @@ includes:
 
 *   gobgzip: same, but compresses using gzip on save, and
     uncompresses on load
+
+*   gobgencrypt: same, but encrypts using a block cipher on save, and
+    decrypts on load
     
 You can implement custom meddlers as well by implementing the
 Meddler interface. See the existing implementations in medder.go for
@@ -303,6 +306,14 @@ If you need a different database, create your own Database instance
 with the appropriate parameters set. If everything works okay,
 please contact me with the parameters you used so I can add the new
 database to the pre-defined list.
+
+Working with Encryption
+-----------------------
+
+If you are using a meddler to ecrypt or decrypt field values, you
+must set the DefaultCipher:
+
+    meddler.DefaultCipher = aes.NewCipher(...)
 
 
 Lower-level functions
