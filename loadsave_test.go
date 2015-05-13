@@ -1,8 +1,11 @@
 package meddler
 
 import (
+	"io"
 	"testing"
 	"time"
+
+	"github.com/mattn/go-sqlite3"
 )
 
 func TestLoad(t *testing.T) {
@@ -99,4 +102,29 @@ func TestSave(t *testing.T) {
 		t.Errorf("DB error on delete: %v", err)
 	}
 	db.Exec("delete from person")
+}
+
+func TestDriverErr(t *testing.T) {
+	err, ok := DriverErr(io.EOF)
+	if ok {
+		t.Errorf("io.EOF: want driver error = false, got true")
+	}
+	if err != io.EOF {
+		t.Errorf("io.EOF: want itself as returned error, got %v", err)
+	}
+
+	once.Do(setup)
+	// insert into an invalid table
+	alice.ID = 0
+	err = Insert(db, "invalid", alice)
+	if err == nil {
+		t.Fatal("insert into invalid table, want error, got none")
+	}
+	err, ok = DriverErr(err)
+	if !ok {
+		t.Errorf("DriverErr: want ok to be true, got false")
+	}
+	if _, ok := err.(sqlite3.Error); !ok {
+		t.Errorf("DriverErr: want sqlite3 error, got %T", err)
+	}
 }

@@ -6,6 +6,25 @@ import (
 	"strings"
 )
 
+type dbErr struct {
+	msg string
+	err error
+}
+
+func (err *dbErr) Error() string {
+	return fmt.Sprintf("%s: %v", err.msg, err.err)
+}
+
+// DriverErr returns the original error as returned by the database driver
+// if the error comes from the driver, with the second value set to true.
+// Otherwise, it returns err itself with false as second value.
+func DriverErr(err error) (error, bool) {
+	if dbe, ok := err.(*dbErr); ok {
+		return dbe.err, true
+	}
+	return err, false
+}
+
 // DB is a generic database interface, matching both *sql.Db and *sql.Tx
 type DB interface {
 	Exec(query string, args ...interface{}) (sql.Result, error)
@@ -35,7 +54,7 @@ func (d *Database) Load(db DB, table string, dst interface{}, pk int64) error {
 
 	rows, err := db.Query(q, pk)
 	if err != nil {
-		return fmt.Errorf("meddler.Load: DB error in Query: %v", err)
+		return &dbErr{msg: "meddler.Load: DB error in Query", err: err}
 	}
 
 	// scan the row
@@ -81,7 +100,7 @@ func (d *Database) Insert(db DB, table string, src interface{}) error {
 		var newPk int64
 		err := db.QueryRow(q, values...).Scan(&newPk)
 		if err != nil {
-			return fmt.Errorf("meddler.Insert: DB error in QueryRow: %v", err)
+			return &dbErr{msg: "meddler.Insert: DB error in QueryRow", err: err}
 		}
 		if err = d.SetPrimaryKey(src, newPk); err != nil {
 			return fmt.Errorf("meddler.Insert: Error saving updated pk: %v", err)
@@ -89,13 +108,13 @@ func (d *Database) Insert(db DB, table string, src interface{}) error {
 	} else if pkName != "" {
 		result, err := db.Exec(q, values...)
 		if err != nil {
-			return fmt.Errorf("meddler.Insert: DB error in Exec: %v", err)
+			return &dbErr{msg: "meddler.Insert: DB error in Exec", err: err}
 		}
 
 		// save the new primary key
 		newPk, err := result.LastInsertId()
 		if err != nil {
-			return fmt.Errorf("meddler.Insert: DB error getting new primary key value: %v", err)
+			return &dbErr{msg: "meddler.Insert: DB error getting new primary key value", err: err}
 		}
 		if err = d.SetPrimaryKey(src, newPk); err != nil {
 			return fmt.Errorf("meddler.Insert: Error saving updated pk: %v", err)
@@ -104,7 +123,7 @@ func (d *Database) Insert(db DB, table string, src interface{}) error {
 		// no primary key, so no need to lookup new value
 		_, err := db.Exec(q, values...)
 		if err != nil {
-			return fmt.Errorf("meddler.Insert: DB error in Exec: %v", err)
+			return &dbErr{msg: "meddler.Insert: DB error in Exec", err: err}
 		}
 	}
 
@@ -160,7 +179,7 @@ func (d *Database) Update(db DB, table string, src interface{}) error {
 	values = append(values, pkValue)
 
 	if _, err := db.Exec(q, values...); err != nil {
-		return fmt.Errorf("meddler.Update: DB error in Exec: %v", err)
+		return &dbErr{msg: "meddler.Update: DB error in Exec", err: err}
 	}
 
 	return nil
