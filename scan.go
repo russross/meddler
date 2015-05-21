@@ -42,6 +42,16 @@ var SQLite = &Database{
 
 var Default = MySQL
 
+// StmtCacheFunc is a function that takes a DB interface and a query string
+// and returns a prepared statement or an error. If the returned statement
+// is not nil and there is no error, the statement is used to execute
+// the query. The statement must be valid to be executed on the provided DB.
+// If an error is returned, it is also returned by the calling function
+// (e.g. Load or Insert) and the query is not executed.
+//
+// The default nil value means that no prepared statement is used.
+var StmtCacheFunc func(DB, string) (*sql.Stmt, error)
+
 func (d *Database) quoted(s string) string {
 	return d.Quote + s + d.Quote
 }
