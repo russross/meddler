@@ -57,6 +57,7 @@ type structField struct {
 	column     string
 	index      int
 	primaryKey bool
+	readOnly   bool
 	meddler    Meddler
 }
 
@@ -118,6 +119,7 @@ func getFields(dstType reflect.Type) (*structData, error) {
 
 		// check for a meddler
 		var meddler Meddler = registry["identity"]
+		readOnly := false
 		for j := 1; j < len(tag); j++ {
 			if tag[j] == "pk" {
 				if f.Type.Kind() == reflect.Ptr {
@@ -136,6 +138,8 @@ func getFields(dstType reflect.Type) (*structData, error) {
 					return nil, fmt.Errorf("meddler found field %s which is marked as the primary key, but a primary key field was already found", f.Name)
 				}
 				data.pk = name
+			} else if tag[j] == "readonly" {
+				readOnly = true
 			} else if m, present := registry[tag[j]]; present {
 				meddler = m
 			} else {
@@ -149,6 +153,7 @@ func getFields(dstType reflect.Type) (*structData, error) {
 		data.fields[name] = &structField{
 			column:     name,
 			primaryKey: name == data.pk,
+			readOnly:   readOnly,
 			index:      i,
 			meddler:    meddler,
 		}
@@ -168,7 +173,7 @@ func (d *Database) Columns(src interface{}, includePk bool) ([]string, error) {
 
 	var names []string
 	for _, elt := range data.columns {
-		if !includePk && elt == data.pk {
+		if (!includePk && elt == data.pk) || data.fields[elt].readOnly {
 			continue
 		}
 		names = append(names, elt)
@@ -329,7 +334,7 @@ func (d *Database) Placeholders(src interface{}, includePk bool) ([]string, erro
 
 	var placeholders []string
 	for _, name := range data.columns {
-		if !includePk && name == data.pk {
+		if (!includePk && name == data.pk) || data.fields[name].readOnly {
 			continue
 		}
 		ph := d.placeholder(len(placeholders) + 1)
