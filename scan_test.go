@@ -3,13 +3,14 @@ package meddler
 import (
 	"database/sql"
 	"fmt"
-	_ "github.com/mattn/go-sqlite3"
 	"reflect"
 	"sort"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 var once sync.Once
@@ -162,7 +163,7 @@ func personEqual(t *testing.T, elt *Person, ref *Person) {
 		t.Errorf("Person %s Email is %v", ref.Name, elt.Email)
 	}
 	if elt.Ephemeral != ref.Ephemeral {
-		t.Errorf("Person %s Ephemeral is %v", ref.Ephemeral, elt.Ephemeral)
+		t.Errorf("Person %s Ephemeral is %v", ref.Name, elt.Ephemeral)
 	}
 	if elt.Age != ref.Age {
 		t.Errorf("Person %s Age is %v", ref.Name, elt.Age)

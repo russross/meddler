@@ -20,6 +20,16 @@ type Database struct {
 	Quote               string // the quote character for table and column names
 	Placeholder         string // the placeholder style to use in generated queries
 	UseReturningToGetID bool   // use PostgreSQL-style RETURNING "ID" instead of calling sql.Result.LastInsertID
+
+	// StmtCacheFunc is a function that takes a DB interface and a query string
+	// and returns a prepared statement or an error. If the returned statement
+	// is not nil and there is no error, the statement is used to execute
+	// the query. The statement must be valid to be executed on the provided DB.
+	// If an error is returned, it is also returned by the calling function
+	// (e.g. Load or Insert) and the query is not executed.
+	//
+	// The default nil value means that no prepared statement is used.
+	StmtCacheFunc func(DB, string) (*sql.Stmt, error)
 }
 
 var MySQL = &Database{
@@ -434,7 +444,7 @@ func Targets(dst interface{}, columns []string) ([]interface{}, error) {
 // by Targets.
 func (d *Database) WriteTargets(dst interface{}, columns []string, targets []interface{}) error {
 	if len(columns) != len(targets) {
-		return fmt.Errorf("meddler.WriteTargets: mismatch in number of columns (%d) and targets (%s)",
+		return fmt.Errorf("meddler.WriteTargets: mismatch in number of columns (%d) and targets (%d)",
 			len(columns), len(targets))
 	}
 

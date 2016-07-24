@@ -52,7 +52,7 @@ func (d *Database) Load(db DB, table string, dst interface{}, pk int64) error {
 	// run the query
 	q := fmt.Sprintf("SELECT %s FROM %s WHERE %s = %s", columns, d.quoted(table), d.quoted(pkName), d.Placeholder)
 
-	rows, err := db.Query(q, pk)
+	rows, err := d.runQuery(db, q, pk)
 	if err != nil {
 		return &dbErr{msg: "meddler.Load: DB error in Query", err: err}
 	}
@@ -98,7 +98,12 @@ func (d *Database) Insert(db DB, table string, src interface{}) error {
 	if d.UseReturningToGetID && pkName != "" {
 		q += " RETURNING " + d.quoted(pkName)
 		var newPk int64
-		err := db.QueryRow(q, values...).Scan(&newPk)
+
+		row, err := d.runQueryRow(db, q, values...)
+		if err != nil {
+			return err
+		}
+		err = row.Scan(&newPk)
 		if err != nil {
 			return &dbErr{msg: "meddler.Insert: DB error in QueryRow", err: err}
 		}
@@ -106,7 +111,7 @@ func (d *Database) Insert(db DB, table string, src interface{}) error {
 			return fmt.Errorf("meddler.Insert: Error saving updated pk: %v", err)
 		}
 	} else if pkName != "" {
-		result, err := db.Exec(q, values...)
+		result, err := d.runExec(db, q, values...)
 		if err != nil {
 			return &dbErr{msg: "meddler.Insert: DB error in Exec", err: err}
 		}
@@ -121,8 +126,7 @@ func (d *Database) Insert(db DB, table string, src interface{}) error {
 		}
 	} else {
 		// no primary key, so no need to lookup new value
-		_, err := db.Exec(q, values...)
-		if err != nil {
+		if _, err := d.runExec(db, q, values...); err != nil {
 			return &dbErr{msg: "meddler.Insert: DB error in Exec", err: err}
 		}
 	}
@@ -178,7 +182,7 @@ func (d *Database) Update(db DB, table string, src interface{}) error {
 		d.quoted(pkName), ph)
 	values = append(values, pkValue)
 
-	if _, err := db.Exec(q, values...); err != nil {
+	if _, err := d.runExec(db, q, values...); err != nil {
 		return &dbErr{msg: "meddler.Update: DB error in Exec", err: err}
 	}
 
@@ -214,7 +218,7 @@ func Save(db DB, table string, src interface{}) error {
 // result row.
 func (d *Database) QueryRow(db DB, dst interface{}, query string, args ...interface{}) error {
 	// perform the query
-	rows, err := db.Query(query, args...)
+	rows, err := d.runQuery(db, query, args...)
 	if err != nil {
 		return err
 	}
@@ -232,7 +236,7 @@ func QueryRow(db DB, dst interface{}, query string, args ...interface{}) error {
 // all results rows into dst.
 func (d *Database) QueryAll(db DB, dst interface{}, query string, args ...interface{}) error {
 	// perform the query
-	rows, err := db.Query(query, args...)
+	rows, err := d.runQuery(db, query, args...)
 	if err != nil {
 		return err
 	}
@@ -244,4 +248,43 @@ func (d *Database) QueryAll(db DB, dst interface{}, query string, args ...interf
 // QueryAll using the Default Database type
 func QueryAll(db DB, dst interface{}, query string, args ...interface{}) error {
 	return Default.QueryAll(db, dst, query, args...)
+}
+
+func (d *Database) runQuery(db DB, q string, args ...interface{}) (*sql.Rows, error) {
+	if d.StmtCacheFunc != nil {
+		stmt, err := d.StmtCacheFunc(db, q)
+		if err != nil {
+			return nil, err
+		}
+		if stmt != nil {
+			return stmt.Query(args...)
+		}
+	}
+	return db.Query(q, args...)
+}
+
+func (d *Database) runQueryRow(db DB, q string, args ...interface{}) (*sql.Row, error) {
+	if d.StmtCacheFunc != nil {
+		stmt, err := d.StmtCacheFunc(db, q)
+		if err != nil {
+			return nil, err
+		}
+		if stmt != nil {
+			return stmt.QueryRow(args...), nil
+		}
+	}
+	return db.QueryRow(q, args...), nil
+}
+
+func (d *Database) runExec(db DB, q string, args ...interface{}) (sql.Result, error) {
+	if d.StmtCacheFunc != nil {
+		stmt, err := d.StmtCacheFunc(db, q)
+		if err != nil {
+			return nil, err
+		}
+		if stmt != nil {
+			return stmt.Exec(args...)
+		}
+	}
+	return db.Exec(q, args...)
 }
