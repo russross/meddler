@@ -1,6 +1,7 @@
 package meddler
 
 import (
+	"crypto/aes"
 	"testing"
 )
 
@@ -14,6 +15,7 @@ type ItemGob struct {
 	ID     int64           `meddler:"id,pk"`
 	Stuff  map[string]bool `meddler:"stuff,gob"`
 	StuffZ map[string]bool `meddler:"stuffz,gobgzip"`
+	StuffP map[string]bool `meddler:"stuffp,gobencrypt"`
 }
 
 func TestJsonMeddler(t *testing.T) {
@@ -79,7 +81,15 @@ func TestGobMeddler(t *testing.T) {
 			"cruel":   true,
 			"world":   true,
 		},
+		StuffP: map[string]bool{
+			"goodbye": true,
+			"cruel":   true,
+			"world":   true,
+		},
 	}
+
+	// set the default cipher for encrypting values
+	DefaultCipher, _ = aes.NewCipher([]byte("1234567890123456"))
 
 	if err := Save(db, "item", elt); err != nil {
 		t.Errorf("Save error: %v", err)
@@ -106,6 +116,12 @@ func TestGobMeddler(t *testing.T) {
 	}
 	if !elt.StuffZ["goodbye"] || !elt.StuffZ["cruel"] || !elt.StuffZ["world"] {
 		t.Errorf("contents of stuffz wrong: %v", elt.StuffZ)
+	}
+	if len(elt.StuffP) != 3 {
+		t.Errorf("expected %d items in StuffP, found %d", 3, len(elt.StuffP))
+	}
+	if !elt.StuffP["goodbye"] || !elt.StuffP["cruel"] || !elt.StuffP["world"] {
+		t.Errorf("contents of stuffp wrong: %v", elt.StuffP)
 	}
 	if _, err := db.Exec("delete from `item`"); err != nil {
 		t.Errorf("error wiping item table: %v", err)

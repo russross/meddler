@@ -3,9 +3,12 @@ package meddler
 import (
 	"bytes"
 	"compress/gzip"
+	"crypto/cipher"
+	"crypto/rand"
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
+	"io"
 	"reflect"
 	"time"
 )
@@ -50,8 +53,9 @@ func init() {
 	Register("zeroisnull", ZeroIsNullMeddler(false))
 	Register("json", JSONMeddler(false))
 	Register("jsongzip", JSONMeddler(true))
-	Register("gob", GobMeddler(false))
-	Register("gobgzip", GobMeddler(true))
+	Register("gob", GobMeddler{false, false})
+	Register("gobgzip", GobMeddler{true, false})
+	Register("gobencrypt", GobMeddler{false, true})
 }
 
 // IdentityMeddler is the default meddler, and it passes the original value through with
@@ -283,21 +287,27 @@ func (zip JSONMeddler) PreWrite(field interface{}) (saveValue interface{}, err e
 	return buffer.Bytes(), nil
 }
 
-type GobMeddler bool
+// Default Cipher used to encrypt and decrypt data.
+var DefaultCipher cipher.Block
 
-func (zip GobMeddler) PreRead(fieldAddr interface{}) (scanTarget interface{}, err error) {
+type GobMeddler struct {
+	Zip     bool
+	Encrypt bool
+}
+
+func (elt GobMeddler) PreRead(fieldAddr interface{}) (scanTarget interface{}, err error) {
 	// give a pointer to a byte buffer to grab the raw data
 	return new([]byte), nil
 }
 
-func (zip GobMeddler) PostRead(fieldAddr, scanTarget interface{}) error {
+func (elt GobMeddler) PostRead(fieldAddr, scanTarget interface{}) error {
 	ptr := scanTarget.(*[]byte)
 	if ptr == nil {
 		return fmt.Errorf("GobMeddler.PostRead: nil pointer")
 	}
 	raw := *ptr
 
-	if zip {
+	if elt.Zip {
 		// un-gzip and decode gob
 		gzipReader, err := gzip.NewReader(bytes.NewReader(raw))
 		if err != nil {
@@ -315,6 +325,18 @@ func (zip GobMeddler) PostRead(fieldAddr, scanTarget interface{}) error {
 		return nil
 	}
 
+	if elt.Encrypt {
+		if DefaultCipher == nil {
+			return fmt.Errorf("Gob decrypt error, DefaultCipher is nil")
+		}
+		// decrypt value for gob decoding
+		var err error
+		raw, err = decrypt(DefaultCipher, raw)
+		if err != nil {
+			return fmt.Errorf("Gob decryption error: %v", err)
+		}
+	}
+
 	// decode gob
 	gobDecoder := gob.NewDecoder(bytes.NewReader(raw))
 	if err := gobDecoder.Decode(fieldAddr); err != nil {
@@ -324,10 +346,10 @@ func (zip GobMeddler) PostRead(fieldAddr, scanTarget interface{}) error {
 	return nil
 }
 
-func (zip GobMeddler) PreWrite(field interface{}) (saveValue interface{}, err error) {
+func (elt GobMeddler) PreWrite(field interface{}) (saveValue interface{}, err error) {
 	buffer := new(bytes.Buffer)
 
-	if zip {
+	if elt.Zip {
 		// gob encode and gzip
 		gzipWriter := gzip.NewWriter(buffer)
 		defer gzipWriter.Close()
@@ -342,10 +364,71 @@ func (zip GobMeddler) PreWrite(field interface{}) (saveValue interface{}, err er
 		return buffer.Bytes(), nil
 	}
 
+	if elt.Encrypt {
+		if DefaultCipher == nil {
+			return nil, fmt.Errorf("Gob decryption error, DefaultCipher is nil")
+		}
+		// gob encode
+		gobEncoder := gob.NewEncoder(buffer)
+		if err := gobEncoder.Encode(field); err != nil {
+			return nil, fmt.Errorf("Gob encoding error: %v", err)
+		}
+		// and then ecrypt
+		encrypted, err := encrypt(DefaultCipher, buffer.Bytes())
+		if err != nil {
+			return nil, fmt.Errorf("Gob decryption error: %v", err)
+		}
+
+		return encrypted, nil
+	}
+
 	// gob encode
 	gobEncoder := gob.NewEncoder(buffer)
 	if err := gobEncoder.Encode(field); err != nil {
 		return nil, fmt.Errorf("Gob encoding error: %v", err)
 	}
 	return buffer.Bytes(), nil
+}
+
+func encrypt(block cipher.Block, v []byte) ([]byte, error) {
+	value := make([]byte, len(v))
+	copy(value, v)
+
+	// Generate a random initialization vector
+	iv := generateRandomKey(block.BlockSize())
+	if len(iv) != block.BlockSize() {
+		return nil, fmt.Errorf("Could not generate a valid initialization vector for encryption")
+	}
+
+	// Encrypt it.
+	stream := cipher.NewCTR(block, iv)
+	stream.XORKeyStream(value, value)
+
+	// Return iv + ciphertext.
+	return append(iv, value...), nil
+}
+
+// decrypt a slice of bytes using the specified cipher (encryption algorithm)
+func decrypt(block cipher.Block, value []byte) ([]byte, error) {
+	size := block.BlockSize()
+	if len(value) > size {
+		// Extract iv.
+		iv := value[:size]
+		// Extract ciphertext.
+		value = value[size:]
+		// Decrypt it.
+		stream := cipher.NewCTR(block, iv)
+		stream.XORKeyStream(value, value)
+		return value, nil
+	}
+	return nil, fmt.Errorf("Could not decrypt the value")
+}
+
+// GenerateRandomKey creates a random key of size length bytes
+func generateRandomKey(strength int) []byte {
+	k := make([]byte, strength)
+	if _, err := io.ReadFull(rand.Reader, k); err != nil {
+		return nil
+	}
+	return k
 }
