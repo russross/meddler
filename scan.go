@@ -434,7 +434,7 @@ func Targets(dst interface{}, columns []string) ([]interface{}, error) {
 // by Targets.
 func (d *Database) WriteTargets(dst interface{}, columns []string, targets []interface{}) error {
 	if len(columns) != len(targets) {
-		return fmt.Errorf("meddler.WriteTargets: mismatch in number of columns (%d) and targets (%s)",
+		return fmt.Errorf("meddler.WriteTargets: mismatch in number of columns (%d) and targets (%d)",
 			len(columns), len(targets))
 	}
 
