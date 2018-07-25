@@ -42,6 +42,13 @@ var SQLite = &Database{
 
 var Default = MySQL
 
+// MapperFunc signature. Argument is field name, return value is database column.
+type MapperFunc func(in string) string
+
+// Mapper defines the function to transform struct field names into database columns.
+// Default is strings.TrimSpace, basically a no-op
+var Mapper MapperFunc = strings.TrimSpace
+
 func (d *Database) quoted(s string) string {
 	return d.Quote + s + d.Quote
 }
@@ -114,6 +121,9 @@ func getFields(dstType reflect.Type) (*structData, error) {
 		// the tag can override the field name
 		if len(tag) > 0 && tag[0] != "" {
 			name = tag[0]
+		} else {
+			// use mapper func if field has no explicit tag
+			name = Mapper(f.Name)
 		}
 
 		// check for a meddler
