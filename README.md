@@ -2,9 +2,9 @@ Meddler [![Build Status](https://travis-ci.org/russross/meddler.svg?branch=maste
 =======
 
 Meddler is a small toolkit to take some of the tedium out of moving data
-back and forth between sql queries and structs.
+back and forth between SQL queries and structs.
 
-It is not a complete ORM. It is intended to be lightweight way to add some
+It is not a complete ORM. Meddler is intended to be a lightweight way to add some
 of the convenience of an ORM while leaving more control in the hands of the
 programmer.
 
@@ -12,11 +12,11 @@ Package docs are available at:
 
 * http://godoc.org/github.com/russross/meddler
 
-The package is housed on github, and the README there has more info:
+The package is housed on GitHub, and the README there has more info:
 
 * http://github.com/russross/meddler
 
-This is currently configured for SQLite, MySQL, and PostgreSQL, but it
+Meddler is currently configured for SQLite, MySQL, and PostgreSQL, but it
 can be configured for use with other databases. If you use it
 successfully with a different database, please contact me and I will
 add it to the list of pre-configured databases.
@@ -138,8 +138,10 @@ interface that works with a *sql.DB or a *sql.Tx):
 
     This loads a single record by its primary key. For example:
 
-        elt := new(Person)
-        err := meddler.Load(db, "person", elt, 15)
+    ```go
+    elt := new(Person)
+    err := meddler.Load(db, "person", elt, 15)
+    ```
 
     db can be a *sql.DB or a *sql.Tx. The table is the name of the
     table, pk is the primary key value, and dst is a pointer to the
@@ -155,13 +157,15 @@ interface that works with a *sql.DB or a *sql.Tx):
     from the insert statement, prompting a default autoincrement
     value).
 
-        elt := &Person{
-            Name: "Alice",
-            Age: 22,
-            // ...
-        }
-        err := meddler.Insert(db, "person", elt)
-        // elt.ID is updated to the value assigned by the database
+    ```go
+    elt := &Person{
+        Name: "Alice",
+        Age: 22,
+        // ...
+    }
+    err := meddler.Insert(db, "person", elt)
+    // elt.ID is updated to the value assigned by the database
+    ```
 
 *   Update(db DB, table string, src interface{}) error
 
@@ -186,8 +190,10 @@ interface that works with a *sql.DB or a *sql.Tx):
 
     For example:
 
-        elt := new(Person)
-        err := meddler.QueryRow(db, elt, "select * from person where name = ?", "bob")
+    ```go
+    elt := new(Person)
+    err := meddler.QueryRow(db, elt, "select * from person where name = ?", "bob")
+    ```
 
 *   QueryAll(db DB, dst interface{}, query string, args ...interface) error
 
@@ -196,9 +202,11 @@ interface that works with a *sql.DB or a *sql.Tx):
 
     For example:
 
-        var people []*Person
-        err := meddler.QueryAll(db, &people, "select * from person")
-
+    ```go
+    var people []*Person
+    err := meddler.QueryAll(db, &people, "select * from person")
+    ```
+    
 *   Scan(rows *sql.Rows, dst interface{}) error
 
     Scans a single row of data into a struct, complete with
@@ -240,7 +248,9 @@ includes:
     variable is set when your program is launched, or use something
     like:
 
-        os.Setenv("TZ", "America/Denver")
+    ```go
+    os.Setenv("TZ", "America/Denver")
+    ```
 
     in your initial setup, before you start using time functions.
 
@@ -284,20 +294,26 @@ structs are pre-defined for MySQL, PostgreSQL, and SQLite.
 
 Instead of relying on the package-level functions, use the method
 form on the appropriate database type, e.g.:
-
-    err = meddler.PostgreSQL.Load(...)
+    
+```go 
+err = meddler.PostgreSQL.Load(...)
+```
 
 instead of
 
-    err = meddler.Load(...)
+```go
+err = meddler.Load(...)
+```
 
 Or to save typing, define your own abbreviated name for each
 database:
 
-    ms := meddler.MySQL
-    pg := meddler.PostgreSQL
-    err = ms.Load(...)
-    err = pg.QueryAll(...)
+```go
+ms := meddler.MySQL
+pg := meddler.PostgreSQL
+err = ms.Load(...)
+err = pg.QueryAll(...)
+```
 
 If you need a different database, create your own Database instance
 with the appropriate parameters set. If everything works okay,
