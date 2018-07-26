@@ -1,4 +1,4 @@
-Meddler [![Build Status](https://travis-ci.org/russross/meddler.svg?branch=master)](https://travis-ci.org/russross/meddler)
+Meddler [![GoDoc](https://godoc.org/github.com/russross/meddler?status.svg)](https://godoc.org/github.com/russross/meddler) [![Build Status](https://travis-ci.org/russross/meddler.svg?branch=master)](https://travis-ci.org/russross/meddler)
 =======
 
 Meddler is a small toolkit to take some of the tedium out of moving data
