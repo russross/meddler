@@ -1,4 +1,4 @@
-Meddler [![GoDoc](https://godoc.org/github.com/russross/meddler?status.svg)](https://godoc.org/github.com/russross/meddler) [![Build Status](https://travis-ci.org/russross/meddler.svg?branch=master)](https://travis-ci.org/russross/meddler)
+Meddler [![Build Status](https://travis-ci.org/russross/meddler.svg?branch=master)](https://travis-ci.org/russross/meddler) [![GoDoc](https://godoc.org/github.com/russross/meddler?status.svg)](https://godoc.org/github.com/russross/meddler) [![Go Report Card](https://goreportcard.com/badge/github.com/russross/meddler)](https://goreportcard.com/report/github.com/russross/meddler)
 =======
 
 Meddler is a small toolkit to take some of the tedium out of moving data
