@@ -22,24 +22,28 @@ type Database struct {
 	UseReturningToGetID bool   // use PostgreSQL-style RETURNING "ID" instead of calling sql.Result.LastInsertID
 }
 
+// MySQL contains database specific options for executing queries in a MySQL database
 var MySQL = &Database{
 	Quote:               "`",
 	Placeholder:         "?",
 	UseReturningToGetID: false,
 }
 
+// PostgreSQL contains database specific options for executing queries in a PostgreSQL database
 var PostgreSQL = &Database{
 	Quote:               `"`,
 	Placeholder:         "$1",
 	UseReturningToGetID: true,
 }
 
+// SQLite contains database specific options for executing queries in a SQLite database
 var SQLite = &Database{
 	Quote:               `"`,
 	Placeholder:         "?",
 	UseReturningToGetID: false,
 }
 
+// Default contains the default database options (which defaults to MySQL)
 var Default = MySQL
 
 func (d *Database) quoted(s string) string {
