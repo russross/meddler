@@ -199,9 +199,9 @@ func (d *Database) Save(db DB, table string, src interface{}) error {
 	}
 	if pkName != "" && pkValue != 0 {
 		return d.Update(db, table, src)
-	} else {
-		return d.Insert(db, table, src)
 	}
+
+	return d.Insert(db, table, src)
 }
 
 // Save using the Default Database type
@@ -209,7 +209,7 @@ func Save(db DB, table string, src interface{}) error {
 	return Default.Save(db, table, src)
 }
 
-// QueryOne performs the given query with the given arguments, scanning a
+// QueryRow performs the given query with the given arguments, scanning a
 // single row of results into dst. Returns sql.ErrNoRows if there was no
 // result row.
 func (d *Database) QueryRow(db DB, dst interface{}, query string, args ...interface{}) error {
