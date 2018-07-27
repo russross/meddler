@@ -58,14 +58,17 @@ func init() {
 // no changes.
 type IdentityMeddler bool
 
+// PreRead is called before a Scan operation for fields that have the IdentityMeddler
 func (elt IdentityMeddler) PreRead(fieldAddr interface{}) (scanTarget interface{}, err error) {
 	return fieldAddr, nil
 }
 
+// PostRead is called after a Scan operation for fields that have the IdentityMeddler
 func (elt IdentityMeddler) PostRead(fieldAddr, scanTarget interface{}) error {
 	return nil
 }
 
+// PreWrite is called before an Insert or Update operation for fields that have the IdentityMeddler
 func (elt IdentityMeddler) PreWrite(field interface{}) (saveValue interface{}, err error) {
 	return field, nil
 }
@@ -77,6 +80,7 @@ type TimeMeddler struct {
 	Local      bool
 }
 
+// PreRead is called before a Scan operation for fields that have a TimeMeddler
 func (elt TimeMeddler) PreRead(fieldAddr interface{}) (scanTarget interface{}, err error) {
 	switch tgt := fieldAddr.(type) {
 	case *time.Time:
@@ -94,6 +98,7 @@ func (elt TimeMeddler) PreRead(fieldAddr interface{}) (scanTarget interface{}, e
 	}
 }
 
+// PostRead is called after a Scan operation for fields that have a TimeMeddler
 func (elt TimeMeddler) PostRead(fieldAddr, scanTarget interface{}) error {
 	switch tgt := fieldAddr.(type) {
 	case *time.Time:
@@ -140,6 +145,7 @@ func (elt TimeMeddler) PostRead(fieldAddr, scanTarget interface{}) error {
 	}
 }
 
+// PreWrite is called before an Insert or Update operation for fields that have a TimeMeddler
 func (elt TimeMeddler) PreWrite(field interface{}) (saveValue interface{}, err error) {
 	switch tgt := field.(type) {
 	case time.Time:
@@ -163,12 +169,14 @@ func (elt TimeMeddler) PreWrite(field interface{}) (saveValue interface{}, err e
 // and strings) to and from null database columns.
 type ZeroIsNullMeddler bool
 
+// PreRead is called before a Scan operation for fields that have the ZeroIsNullMeddler
 func (elt ZeroIsNullMeddler) PreRead(fieldAddr interface{}) (scanTarget interface{}, err error) {
 	// create a pointer to this element
 	// the database driver will set it to nil if the column value is null
 	return reflect.New(reflect.TypeOf(fieldAddr)).Interface(), nil
 }
 
+// PostRead is called after a Scan operation for fields that have the ZeroIsNullMeddler
 func (elt ZeroIsNullMeddler) PostRead(fieldAddr, scanTarget interface{}) error {
 	sv := reflect.ValueOf(scanTarget)
 	fv := reflect.ValueOf(fieldAddr)
@@ -182,6 +190,7 @@ func (elt ZeroIsNullMeddler) PostRead(fieldAddr, scanTarget interface{}) error {
 	return nil
 }
 
+// PreWrite is called before an Insert or Update operation for fields that have the ZeroIsNullMeddler
 func (elt ZeroIsNullMeddler) PreWrite(field interface{}) (saveValue interface{}, err error) {
 	val := reflect.ValueOf(field)
 	switch val.Kind() {
@@ -218,11 +227,13 @@ func (elt ZeroIsNullMeddler) PreWrite(field interface{}) (saveValue interface{},
 
 type JSONMeddler bool
 
+// PreRead is called before a Scan operation for fields that have the JSONMeddler
 func (zip JSONMeddler) PreRead(fieldAddr interface{}) (scanTarget interface{}, err error) {
 	// give a pointer to a byte buffer to grab the raw data
 	return new([]byte), nil
 }
 
+// PostRead is called after a Scan operation for fields that have the JSONMeddler
 func (zip JSONMeddler) PostRead(fieldAddr, scanTarget interface{}) error {
 	ptr := scanTarget.(*[]byte)
 	if ptr == nil {
@@ -257,6 +268,7 @@ func (zip JSONMeddler) PostRead(fieldAddr, scanTarget interface{}) error {
 	return nil
 }
 
+// PreWrite is called before an Insert or Update operation for fields that have the JSONMeddler
 func (zip JSONMeddler) PreWrite(field interface{}) (saveValue interface{}, err error) {
 	buffer := new(bytes.Buffer)
 
@@ -285,11 +297,13 @@ func (zip JSONMeddler) PreWrite(field interface{}) (saveValue interface{}, err e
 
 type GobMeddler bool
 
+// PreRead is called before a Scan operation for fields that have the GobMeddler
 func (zip GobMeddler) PreRead(fieldAddr interface{}) (scanTarget interface{}, err error) {
 	// give a pointer to a byte buffer to grab the raw data
 	return new([]byte), nil
 }
 
+// PostRead is called after a Scan operation for fields that have the GobMeddler
 func (zip GobMeddler) PostRead(fieldAddr, scanTarget interface{}) error {
 	ptr := scanTarget.(*[]byte)
 	if ptr == nil {
@@ -324,6 +338,7 @@ func (zip GobMeddler) PostRead(fieldAddr, scanTarget interface{}) error {
 	return nil
 }
 
+// PreWrite is called before an Insert or Update operation for fields that have the GobMeddler
 func (zip GobMeddler) PreWrite(field interface{}) (saveValue interface{}, err error) {
 	buffer := new(bytes.Buffer)
 
