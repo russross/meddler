@@ -225,6 +225,7 @@ func (elt ZeroIsNullMeddler) PreWrite(field interface{}) (saveValue interface{},
 	return field, nil
 }
 
+// JSONMeddler encodes or decodes the field value to or from JSON
 type JSONMeddler bool
 
 // PreRead is called before a Scan operation for fields that have the JSONMeddler
@@ -295,6 +296,7 @@ func (zip JSONMeddler) PreWrite(field interface{}) (saveValue interface{}, err e
 	return buffer.Bytes(), nil
 }
 
+// GobMeddler encodes or decodes the field value to or from gob
 type GobMeddler bool
 
 // PreRead is called before a Scan operation for fields that have the GobMeddler
