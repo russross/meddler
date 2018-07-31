@@ -499,17 +499,14 @@ func Scan(rows *sql.Rows, dst interface{}) error {
 // It reads exactly one result row and closes rows when finished.
 // Returns sql.ErrNoRows if there is no result row.
 func (d *Database) ScanRow(rows *sql.Rows, dst interface{}) error {
-	// make sure we always close rows
+	// make sure we always close rows, even if there is a scan error
 	defer rows.Close()
 
 	if err := d.Scan(rows, dst); err != nil {
 		return err
 	}
-	if err := rows.Close(); err != nil {
-		return err
-	}
 
-	return nil
+	return rows.Close()
 }
 
 // ScanRow using the Default Database type
