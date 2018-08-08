@@ -12,10 +12,12 @@ type MapperFunc func(in string) string
 // Default is strings.TrimSpace, basically a no-op
 var Mapper MapperFunc = strings.TrimSpace
 
+// LowerCase returns a lowercased version of the input string
 func LowerCase(in string) string {
 	return strings.ToLower(in)
 }
 
+// SnakeCase returns a snake_cased version of the input string
 func SnakeCase(in string) string {
 	runes := []rune(in)
 
