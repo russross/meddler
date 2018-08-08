@@ -69,6 +69,15 @@ const schema2 = `create table item (
 	stuffz blob not null
 )`
 
+const schema3 = `create table null_item (
+	id integer primary key,
+	nullint integer null,
+	nullstring text null,
+	nullcomplex real null,
+	nullfloat real null,
+	nullbool integer null
+)`
+
 var aliceHeight int = 65
 var alice = &Person{
 	Name:      "Alice",
@@ -102,6 +111,9 @@ func setup() {
 	}
 	if _, err = db.Exec(schema2); err != nil {
 		panic("error creating item table: " + err.Error())
+	}
+	if _, err = db.Exec(schema3); err != nil {
+		panic("error creating null_item table: " + err.Error())
 	}
 
 }

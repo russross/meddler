@@ -16,6 +16,46 @@ type ItemGob struct {
 	StuffZ map[string]bool `meddler:"stuffz,gobgzip"`
 }
 
+type ItemZeroes struct {
+	ID      int64      `meddler:"id,pk"`
+	Int     int        `meddler:"nullint,zeroisnull"`
+	Float   float64    `meddler:"nullfloat,zeroisnull"`
+	Complex complex128 `meddler:"nullcomplex,zeroisnull"`
+	String  string     `meddler:"nullstring,zeroisnull"`
+	Bool    bool       `meddler:"nullbool,zeroisnull"`
+}
+
+func TestZeroIsNullMeddler(t *testing.T) {
+	once.Do(setup)
+
+	before := &ItemZeroes{}
+	if err := Save(db, "null_item", before); err != nil {
+		t.Errorf("Save error: %v", err)
+	}
+	id := before.ID
+
+	after := new(ItemZeroes)
+	if err := Load(db, "null_item", after, id); err != nil {
+		t.Errorf("Load error: %v", err)
+	}
+
+	if before.String != after.String {
+		t.Errorf("before.String: expected %s, got %s", before.String, after.String)
+	}
+	if before.Int != after.Int {
+		t.Errorf("before.Int: expected %d, got %d", before.Int, after.Int)
+	}
+	if before.Float != after.Float {
+		t.Errorf("before.Float: expected %#v, got %#v", before.Float, after.Float)
+	}
+	if before.Bool != after.Bool {
+		t.Errorf("before.Bool: expected %#v, got %#v", before.Bool, after.Bool)
+	}
+	if before.Complex != after.Complex {
+		t.Errorf("before.Complex: expected %#v, got %#v", before.Complex, after.Complex)
+	}
+}
+
 func TestJsonMeddler(t *testing.T) {
 	once.Do(setup)
 
