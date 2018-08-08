@@ -46,13 +46,6 @@ var SQLite = &Database{
 // Default contains the default database options (which defaults to MySQL)
 var Default = MySQL
 
-// MapperFunc signature. Argument is field name, return value is database column.
-type MapperFunc func(in string) string
-
-// Mapper defines the function to transform struct field names into database columns.
-// Default is strings.TrimSpace, basically a no-op
-var Mapper MapperFunc = strings.TrimSpace
-
 func (d *Database) quoted(s string) string {
 	return d.Quote + s + d.Quote
 }
