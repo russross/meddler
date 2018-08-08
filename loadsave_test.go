@@ -39,6 +39,23 @@ func TestLoadUint(t *testing.T) {
 	db.Exec("delete from person")
 }
 
+func TestQueryAll(t *testing.T) {
+	once.Do(setup)
+	insertAliceBob(t)
+	var people []*Person
+	err := QueryAll(db, &people, "SELECT * FROM person", "")
+	if err != nil {
+		t.Errorf("QueryAll error: %v", err)
+	}
+
+	if len(people) != 2 {
+		t.Errorf("QueryAll(): expected %d results, got %d", 2, len(people))
+	}
+
+	db.Exec("delete from person")
+
+}
+
 func TestSave(t *testing.T) {
 	once.Do(setup)
 	insertAliceBob(t)
