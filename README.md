@@ -130,6 +130,10 @@ Notes about this example:
     This has the same properties as "localtime", except that the
     zero time will be saved in the database as a null column (and
     null values will be loaded as the zero time value).
+*   You can set a default column name mapping by setting
+    `meddler.Mapper` to a `func(s string) string` function.  For
+    example, `meddler.Mapper = meddler.SnakeCase` will convert field
+    names to snake_case unless an explict column name is specified.
 
 Meddler provides a few high-level functions (note: DB is an
 interface that works with a *sql.DB or a *sql.Tx):
