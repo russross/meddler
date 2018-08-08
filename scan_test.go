@@ -103,6 +103,7 @@ func setup() {
 	if _, err = db.Exec(schema2); err != nil {
 		panic("error creating item table: " + err.Error())
 	}
+
 }
 
 func structFieldEqual(t *testing.T, elt *structField, ref *structField) {
@@ -143,6 +144,53 @@ func TestGetFields(t *testing.T) {
 	structFieldEqual(t, data.fields[data.columns[5]], &structField{"closed", 7, false, registry["utctimez"]})
 	structFieldEqual(t, data.fields[data.columns[6]], &structField{"updated", 8, false, registry["localtime"]})
 	structFieldEqual(t, data.fields[data.columns[7]], &structField{"height", 9, false, registry["identity"]})
+
+	// test with non-pointer
+	if _, err := getFields(reflect.TypeOf(*alice)); err == nil {
+		t.Errorf("calling getFields with non-pointer type should return err, got nil")
+	}
+
+	// test with pointer to non-struct
+	s := "foo"
+	if _, err := getFields(reflect.TypeOf(&s)); err == nil {
+		t.Errorf("calling getFields with pointer to non-struct should return err, got nil")
+	}
+
+	// test with pointer as PK
+	type personPointerPK struct {
+		ID *int `meddler:",pk"`
+	}
+	if _, err := getFields(reflect.TypeOf((*personPointerPK)(nil))); err == nil {
+		t.Errorf("calling getFields with pointer as primary key should return err, got nil")
+	}
+
+	// test with struct as PK
+	type personStructPK struct {
+		ID Person `meddler:",pk"`
+	}
+	if _, err := getFields(reflect.TypeOf((*personStructPK)(nil))); err == nil {
+		t.Errorf("calling getFields with struct as primary key should return err, got nil")
+	}
+
+	// test with duplicate column name
+	type personDuplicateColumn struct {
+		ID   int    `meddler:"id,pk"`
+		Foo1 string `meddler:"foo"`
+		Foo2 string `meddler:"foo"`
+	}
+	if _, err := getFields(reflect.TypeOf((*personDuplicateColumn)(nil))); err == nil {
+		t.Errorf("calling getFields with duplicated column name should return err, got nil")
+	}
+
+	// test with unexisting meddler
+	type personUnexistingMeddler struct {
+		ID  int    `meddler:"id,pk"`
+		Foo string `meddler:"foo,bar"`
+	}
+	if _, err := getFields(reflect.TypeOf((*personUnexistingMeddler)(nil))); err == nil {
+		t.Errorf("calling getFields with unexisting meddler should return err, got nil")
+	}
+
 }
 
 func personEqual(t *testing.T, elt *Person, ref *Person) {
@@ -234,6 +282,7 @@ func TestColumns(t *testing.T) {
 			t.Errorf("Expected %s at position %d, got %s", expected[i], i, names[i])
 		}
 	}
+
 }
 
 func TestColumnsQuoted(t *testing.T) {
