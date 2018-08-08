@@ -134,4 +134,11 @@ func TestDriverErr(t *testing.T) {
 	if err == nil {
 		t.Errorf("insert with primary key already set. want error, got none")
 	}
+
+	// update with primary key not set
+	alice.ID = 0
+	err = Update(db, "person", alice)
+	if err == nil {
+		t.Errorf("update with primary key 0. want error, got none")
+	}
 }
