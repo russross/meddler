@@ -22,6 +22,30 @@ func TestLoad(t *testing.T) {
 	bob.ID = 2
 	personEqual(t, elt, bob)
 	db.Exec("delete from person")
+
+	// test for err on invalid table
+	if err := Load(db, "invalid_table_name", elt, 2); err == nil {
+		t.Errorf("Load on invalid table, expected err, got nil")
+	}
+}
+
+func TestNoPrimaryKey(t *testing.T) {
+	once.Do(setup)
+
+	// test without primary key
+	type personWithoutPK struct {
+		Name string
+	}
+	elt2 := new(personWithoutPK)
+	if err := Load(db, "person", elt2, 2); err == nil {
+		t.Error("Load on struct without PK: expected err, got nil")
+	}
+	if err := Update(db, "person", elt2); err == nil {
+		t.Error("Update on struct without PK: expected err, got nil")
+	}
+	if err := Save(db, "person", elt2); err == nil {
+		t.Error("Save on struct without PK: expected err, got nil")
+	}
 }
 
 func TestLoadUint(t *testing.T) {
@@ -43,8 +67,7 @@ func TestQueryAll(t *testing.T) {
 	once.Do(setup)
 	insertAliceBob(t)
 	var people []*Person
-	err := QueryAll(db, &people, "SELECT * FROM person", "")
-	if err != nil {
+	if err := QueryAll(db, &people, "SELECT * FROM person", ""); err != nil {
 		t.Errorf("QueryAll error: %v", err)
 	}
 
@@ -54,6 +77,10 @@ func TestQueryAll(t *testing.T) {
 
 	db.Exec("delete from person")
 
+	// test on unexisting table
+	if err := QueryAll(db, &people, "SELECT * FROM invalid_table_name"); err == nil {
+		t.Errorf("QueryAll on invalid table, expected err, got nil")
+	}
 }
 
 func TestSave(t *testing.T) {
