@@ -104,6 +104,11 @@ func TestSave(t *testing.T) {
 	if err != nil {
 		t.Errorf("DB error on begin: %v", err)
 	}
+	// test invalid table for err return value
+	if err := Save(tx, "invalid_table_name", chris); err == nil {
+		t.Error("Save with invalid table, expected err, got nil")
+	}
+	// save correctly
 	if err = Save(tx, "person", chris); err != nil {
 		t.Errorf("DB error on Save: %v", err)
 	}
