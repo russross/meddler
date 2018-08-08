@@ -127,4 +127,11 @@ func TestDriverErr(t *testing.T) {
 	if _, ok := err.(sqlite3.Error); !ok {
 		t.Errorf("DriverErr: want sqlite3 error, got %T", err)
 	}
+
+	// insert with primary key set
+	alice.ID = 1
+	err = Insert(db, "person", alice)
+	if err == nil {
+		t.Errorf("insert with primary key already set. want error, got none")
+	}
 }
