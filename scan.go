@@ -193,7 +193,7 @@ func Columns(src interface{}, includePk bool) ([]string, error) {
 //   `column1`,`column2`,...
 // using Quote as the quote character.
 func (d *Database) ColumnsQuoted(src interface{}, includePk bool) (string, error) {
-	unquoted, err := Columns(src, includePk)
+	unquoted, err := d.Columns(src, includePk)
 	if err != nil {
 		return "", err
 	}
